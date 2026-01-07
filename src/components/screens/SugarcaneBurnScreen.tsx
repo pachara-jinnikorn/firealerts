@@ -14,11 +14,12 @@ export function SugarcaneBurnScreen() {
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [activeLayer, setActiveLayer] = useState<'burn' | 'non-burn'>('burn');
-  const [isDrawing, setIsDrawing] = useState(false);
   const [polygons, setPolygons] = useState<any[]>([]);
-  const drawingControlsRef = useState<any>({});
   const [isSheetExpanded, setIsSheetExpanded] = useState(true);
   const [mapInstance, setMapInstance] = useState<any>(null);
+
+  // NEW: Store the drawing controls from the map
+  const [drawingControls, setDrawingControls] = useState<any>(null);
 
   const handleNavigateToMap = () => {
     setIsSheetExpanded(false);
@@ -82,7 +83,7 @@ export function SugarcaneBurnScreen() {
   };
   
   const handleLocateMe = () => {
-    if (drawingControlsRef.current?.isDrawing) return;
+    if (drawingControls?.isDrawing) return;
     
     setToastMessage('🎯 ' + t('gettingLocation'));
     setShowToast(true);
@@ -130,33 +131,38 @@ export function SugarcaneBurnScreen() {
   };
   
   const handleDropPin = () => {
-    if (drawingControlsRef.current?.isDrawing) return;
+    if (drawingControls?.isDrawing) return;
     setToastMessage('📍 ' + (language === 'th' ? 'คลิกบนแผนที่เพื่อเลือกตำแหน่ง' : 'Click on map to select location'));
     setShowToast(true);
     setTimeout(() => setShowToast(false), 3000);
   };
   
   const handleDrawPolygon = () => {
-    if (drawingControlsRef.current?.startDrawing) {
-      drawingControlsRef.current.startDrawing();
-      setIsDrawing(true);
+    console.log('🎨 Draw polygon button clicked');
+    if (drawingControls?.startDrawing) {
+      drawingControls.startDrawing();
       const layerText = activeLayer === 'burn' ? t('burnArea') : t('noBurnArea');
       setToastMessage(`🎨 ${language === 'th' ? `เริ่มวาด ${layerText} - คลิกเพื่อเพิ่มจุด, ดับเบิลคลิกเพื่อสิ้นสุด` : `Draw ${layerText} - Click to add points, Double-click to finish`}`);
       setShowToast(true);
       setTimeout(() => setShowToast(false), 4000);
+    } else {
+      console.error('❌ Drawing controls not available!');
+      setToastMessage('❌ ระบบวาด Polygon ยังไม่พร้อม');
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 2000);
     }
   };
   
   const handleStopDrawing = () => {
-    if (drawingControlsRef.current?.stopDrawing) {
-      drawingControlsRef.current.stopDrawing();
-      setIsDrawing(false);
+    console.log('⏸️ Stop drawing button clicked');
+    if (drawingControls?.stopDrawing) {
+      drawingControls.stopDrawing();
     }
   };
   
   const handlePolygonCreated = (polygon: any) => {
+    console.log('✅ Polygon created in screen:', polygon);
     setPolygons(prev => [...prev, polygon]);
-    setIsDrawing(false);
     const layerText = polygon.type === 'burn' ? `🔥 ${t('burnArea')}` : `🌱 ${t('noBurnArea')}`;
     setToastMessage(`✓ ${language === 'th' ? 'สร้าง' : 'Created'} ${layerText} - ${(polygon.area / 1600).toFixed(2)} ${t('rai')}`);
     setShowToast(true);
@@ -164,6 +170,7 @@ export function SugarcaneBurnScreen() {
   };
   
   const handlePolygonDeleted = (id: string) => {
+    console.log('🗑️ Polygon deleted in screen:', id);
     setPolygons(prev => prev.filter(p => p.id !== id));
     setToastMessage('🗑️ ' + (language === 'th' ? 'ลบ Polygon แล้ว' : 'Polygon deleted'));
     setShowToast(true);
@@ -196,7 +203,12 @@ export function SugarcaneBurnScreen() {
           onMapReady={setMapInstance}
         >
           {(controls: any) => {
-            drawingControlsRef.current = controls;
+            // Store the controls for use in button handlers
+            if (controls && !drawingControls) {
+              console.log('📦 Storing drawing controls:', controls);
+              setDrawingControls(controls);
+            }
+            
             return (
               <>
                 <LayerSwitch 
@@ -209,7 +221,7 @@ export function SugarcaneBurnScreen() {
                 />
                 <FloatingButtons
                   theme="sugarcane"
-                  isDrawing={controls.isDrawing}
+                  isDrawing={controls?.isDrawing || false}
                   onLocateMe={handleLocateMe}
                   onDropPin={handleDropPin}
                   onDrawPolygon={handleDrawPolygon}
@@ -219,8 +231,6 @@ export function SugarcaneBurnScreen() {
                     setShowToast(true);
                     setTimeout(() => setShowToast(false), 3000);
                   }}
-                  onZoomIn={handleZoomIn}
-                  onZoomOut={handleZoomOut}
                 />
               </>
             );

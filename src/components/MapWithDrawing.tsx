@@ -9,7 +9,7 @@ interface Polygon {
 }
 
 interface MapWithDrawingProps {
-  children?: React.ReactNode;
+  children?: React.ReactNode | ((controls: any) => React.ReactNode);
   theme?: 'rice' | 'sugarcane';
   activeLayer?: 'burn' | 'non-burn';
   onPolygonCreated?: (polygon: Polygon) => void;
@@ -60,6 +60,7 @@ export function MapWithDrawing({
   };
 
   const startDrawing = () => {
+    console.log('🎨 Starting drawing mode...');
     setIsDrawing(true);
     setDrawingPoints([]);
     // Clear temporary markers
@@ -72,7 +73,9 @@ export function MapWithDrawing({
   };
 
   const stopDrawing = () => {
+    console.log('⏸️ Stopping drawing mode...');
     setIsDrawing(false);
+    
     if (drawingPoints.length >= 3) {
       // Create polygon
       const area = calculateArea(drawingPoints);
@@ -88,6 +91,7 @@ export function MapWithDrawing({
         color,
       };
       
+      console.log('✅ Creating polygon:', newPolygon);
       setPolygons(prev => [...prev, newPolygon]);
       if (onPolygonCreated) {
         onPolygonCreated(newPolygon);
@@ -131,6 +135,7 @@ export function MapWithDrawing({
   };
 
   const deletePolygon = (id: string) => {
+    console.log('🗑️ Deleting polygon:', id);
     setPolygons(prev => prev.filter(p => p.id !== id));
     const polygonLayer = polygonLayersRef.current.find(p => p.id === id);
     if (polygonLayer) {
@@ -158,6 +163,7 @@ export function MapWithDrawing({
       
       if (!mapContainerRef.current || mapRef.current) return;
 
+      console.log('🗺️ Initializing map...');
       const map = L.map(mapContainerRef.current, {
         center: [userLocation.lat, userLocation.lng],
         zoom: 15,
@@ -205,37 +211,49 @@ export function MapWithDrawing({
         radius: 50,
       }).addTo(map);
 
-      // Map click handler
+      // Map click handler - FIXED
       map.on('click', (e: any) => {
-        if (isDrawing) {
-          const newPoints: [number, number][] = [...drawingPoints, [e.latlng.lat, e.latlng.lng]];
-          setDrawingPoints(newPoints);
+        console.log('🖱️ Map clicked. Drawing mode:', isDrawing);
+        
+        // Check if we're in drawing mode using the current state from the ref
+        // We need to use a ref to get the latest state in the event handler
+        if ((window as any).__isDrawingMode) {
+          console.log('✏️ Adding point:', e.latlng.lat, e.latlng.lng);
+          const newPoint: [number, number] = [e.latlng.lat, e.latlng.lng];
           
-          // Add temporary marker
-          const marker = L.circleMarker([e.latlng.lat, e.latlng.lng], {
-            radius: 6,
-            fillColor: activeLayer === 'burn' ? '#ef4444' : '#10b981',
-            color: '#fff',
-            weight: 2,
-            opacity: 1,
-            fillOpacity: 0.8,
-          }).addTo(map);
-          
-          tempMarkersRef.current.push(marker);
-          
-          // Draw temporary line
-          if (tempLineRef.current) {
-            tempLineRef.current.remove();
-          }
-          
-          if (newPoints.length > 1) {
-            tempLineRef.current = L.polyline(newPoints, {
-              color: activeLayer === 'burn' ? '#ef4444' : '#10b981',
+          setDrawingPoints(prev => {
+            const updated = [...prev, newPoint];
+            console.log(`📍 Total points: ${updated.length}`);
+            
+            // Add temporary marker
+            const marker = L.circleMarker([e.latlng.lat, e.latlng.lng], {
+              radius: 6,
+              fillColor: activeLayer === 'burn' ? '#ef4444' : '#10b981',
+              color: '#fff',
               weight: 2,
-              dashArray: '5, 5',
+              opacity: 1,
+              fillOpacity: 0.8,
             }).addTo(map);
-          }
+            
+            tempMarkersRef.current.push(marker);
+            
+            // Draw temporary line
+            if (tempLineRef.current) {
+              tempLineRef.current.remove();
+            }
+            
+            if (updated.length > 1) {
+              tempLineRef.current = L.polyline(updated, {
+                color: activeLayer === 'burn' ? '#ef4444' : '#10b981',
+                weight: 2,
+                dashArray: '5, 5',
+              }).addTo(map);
+            }
+            
+            return updated;
+          });
         } else {
+          console.log('📌 Regular pin drop mode');
           // Regular pin drop
           markersRef.current.forEach(m => m.remove());
           markersRef.current = [];
@@ -265,10 +283,12 @@ export function MapWithDrawing({
         }
       });
 
-      // Double click to finish drawing
+      // Double click to finish drawing - FIXED
       map.on('dblclick', (e: any) => {
-        if (isDrawing) {
+        if ((window as any).__isDrawingMode) {
+          console.log('✅ Double-click detected - finishing polygon');
           L.DomEvent.stopPropagation(e);
+          L.DomEvent.preventDefault(e);
           stopDrawing();
         }
       });
@@ -305,12 +325,17 @@ export function MapWithDrawing({
         mapRef.current = null;
       }
     };
-  }, []);
+  }, [activeLayer, theme]); // Dependencies
 
-  // Update drawing mode
+  // Update drawing mode flag when state changes
+  useEffect(() => {
+    (window as any).__isDrawingMode = isDrawing;
+    console.log('🔄 Drawing mode updated:', isDrawing);
+  }, [isDrawing]);
+
+  // Clear temp drawings if stopped without completing
   useEffect(() => {
     if (!isDrawing && drawingPoints.length > 0) {
-      // Clear if stopped without completing
       tempMarkersRef.current.forEach(m => m.remove());
       tempMarkersRef.current = [];
       if (tempLineRef.current) {
@@ -320,6 +345,14 @@ export function MapWithDrawing({
       setDrawingPoints([]);
     }
   }, [isDrawing]);
+
+  // Controls object to pass to children
+  const controls = {
+    startDrawing,
+    stopDrawing,
+    isDrawing,
+    polygons
+  };
 
   return (
     <>
@@ -389,7 +422,7 @@ export function MapWithDrawing({
         {/* Children (Floating Buttons) - pass drawing controls */}
         <div className="relative z-[1000]">
           {typeof children === 'function' 
-            ? (children as any)({ startDrawing, stopDrawing, isDrawing, polygons })
+            ? children(controls)
             : children
           }
         </div>
