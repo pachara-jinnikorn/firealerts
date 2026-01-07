@@ -3,7 +3,7 @@ import { RiceBurnScreen } from './components/screens/RiceBurnScreen';
 import { SugarcaneBurnScreen } from './components/screens/SugarcaneBurnScreen';
 import { HistoryScreen } from './components/screens/HistoryScreen';
 import { BottomNavigation } from './components/BottomNavigation';
-import { Login } from './components/Login';
+import Login from './components/Login';
 import { storage } from './utils/storage';
 import { LanguageProvider } from './contexts/LanguageContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
