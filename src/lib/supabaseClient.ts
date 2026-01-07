@@ -13,8 +13,10 @@ const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    persistSession: true,
-    autoRefreshToken: true,
+    // Do NOT persist session so the app always starts on the login screen
+    persistSession: false,
+    // No need to auto-refresh tokens if we are not persisting sessions
+    autoRefreshToken: false,
   },
 });
 
