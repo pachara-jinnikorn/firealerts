@@ -107,20 +107,44 @@ export class DatabaseService {
       try {
         const photoDataUrl = photos[i];
         
-        // Convert base64 to blob
-        const response = await fetch(photoDataUrl);
-        const blob = await response.blob();
+        // Skip HTTP URLs (sample data)
+        if (photoDataUrl.startsWith('http')) {
+          console.log(`Skipping external URL photo ${i + 1}`);
+          continue;
+        }
 
-        // Create unique file path: userId/recordId/photo_index.jpg
-        const filePath = `${user.id}/${recordId}/photo_${i}_${Date.now()}.jpg`;
+        // Extract the base64 data and determine the mime type
+        const matches = photoDataUrl.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+        if (!matches || matches.length !== 3) {
+          console.error(`Invalid base64 format for photo ${i}`);
+          continue;
+        }
 
-        console.log(`Uploading photo ${i + 1}/${photos.length} to ${filePath}`);
+        const mimeType = matches[1] || 'image/jpeg';
+        const base64Data = matches[2];
+        
+        // Convert base64 to binary
+        const byteCharacters = atob(base64Data);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let j = 0; j < byteCharacters.length; j++) {
+          byteNumbers[j] = byteCharacters.charCodeAt(j);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: mimeType });
+
+        // Determine file extension from mime type
+        const extension = mimeType.split('/')[1] || 'jpg';
+        
+        // Create unique file path: userId/recordId/photo_index_timestamp.ext
+        const filePath = `${user.id}/${recordId}/photo_${i}_${Date.now()}.${extension}`;
+
+        console.log(`Uploading photo ${i + 1}/${photos.length} to ${filePath} (${blob.size} bytes, ${mimeType})`);
 
         // Upload to storage
         const { error: uploadError } = await supabase.storage
           .from('burn-photos')
           .upload(filePath, blob, {
-            contentType: 'image/jpeg',
+            contentType: mimeType,
             upsert: false,
           });
 
@@ -136,7 +160,7 @@ export class DatabaseService {
             record_id: recordId,
             storage_path: filePath,
             file_size: blob.size,
-            mime_type: 'image/jpeg',
+            mime_type: mimeType,
           });
 
         if (dbError) {
@@ -144,9 +168,9 @@ export class DatabaseService {
           throw dbError;
         }
 
-        console.log(`Photo ${i + 1} uploaded successfully`);
+        console.log(`✅ Photo ${i + 1} uploaded successfully`);
       } catch (error) {
-        console.error(`Error uploading photo ${i}:`, error);
+        console.error(`❌ Error uploading photo ${i}:`, error);
       }
     }
   }
