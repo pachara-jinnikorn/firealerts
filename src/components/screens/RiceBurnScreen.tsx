@@ -1,0 +1,237 @@
+import { useState } from 'react';
+import { AppBar } from '../AppBar';
+import { MapWithDrawing } from '../MapWithDrawing';
+import { FloatingButtons } from '../FloatingButtons';
+import { BottomSheet } from '../BottomSheet';
+import { RiceBurnForm } from '../forms/RiceBurnForm';
+import { Toast } from '../Toast';
+import { LayerSwitch } from '../LayerSwitch';
+import { storage, SavedRecord } from '../../utils/storage';
+import { useLanguage } from '../../contexts/LanguageContext';
+
+export function RiceBurnScreen() {
+  const { t } = useLanguage();
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [activeLayer, setActiveLayer] = useState<'burn' | 'non-burn'>('burn');
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [polygons, setPolygons] = useState<any[]>([]);
+  const [formData, setFormData] = useState<any>({});
+  const drawingControlsRef = useState<any>({});
+  const [isSheetExpanded, setIsSheetExpanded] = useState(true);
+  const [mapInstance, setMapInstance] = useState<any>(null);
+
+  const handleNavigateToMap = () => {
+    setIsSheetExpanded(false);
+  };
+
+  const handleSave = (data: any) => {
+    const record: SavedRecord = {
+      id: Date.now().toString(),
+      type: 'rice',
+      date: data.date,
+      time: data.time,
+      location: data.location || {
+        lat: 13.7563,
+        lng: 100.5018,
+        accuracy: 5,
+      },
+      polygons: polygons,
+      riceFieldType: data.riceFieldType,
+      riceVariety: data.riceVariety,
+      remarks: data.remarks,
+      photos: data.photos,
+      createdAt: new Date().toISOString(),
+      status: 'saved',
+    };
+    
+    storage.saveRecord(record);
+    setToastMessage(`✓ ${t('saveData')} (${polygons.length} ${t('polygon')})`);
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 3000);
+    
+    // Reset form
+    setPolygons([]);
+  };
+
+  const handleSaveDraft = (data: any) => {
+    const record: SavedRecord = {
+      id: Date.now().toString(),
+      type: 'rice',
+      date: data.date,
+      time: data.time,
+      location: data.location || {
+        lat: 13.7563,
+        lng: 100.5018,
+        accuracy: 5,
+      },
+      polygons: polygons,
+      riceFieldType: data.riceFieldType,
+      riceVariety: data.riceVariety,
+      remarks: data.remarks,
+      photos: data.photos,
+      createdAt: new Date().toISOString(),
+      status: 'draft',
+    };
+    
+    storage.saveRecord(record);
+    setToastMessage(`📝 ${t('saveDraft')}`);
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 3000);
+  };
+  
+  const handleLocateMe = () => {
+    if (drawingControlsRef.current?.isDrawing) return;
+    
+    setToastMessage('🎯 ' + t('gettingLocation'));
+    setShowToast(true);
+    
+    if (!navigator.geolocation) {
+      setToastMessage('⚠️ GPS ไม่รองรับในเบราว์เซอร์นี้');
+      setTimeout(() => setShowToast(false), 3000);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        if (mapInstance) {
+          mapInstance.setView([latitude, longitude], 18);
+          setToastMessage(`✅ ${t('location')} ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`);
+        } else {
+          setToastMessage(`📍 ${t('location')}: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`);
+        }
+        setTimeout(() => setShowToast(false), 3000);
+      },
+      (error) => {
+        console.error('GPS Error:', error);
+        let errorMessage = '⚠️ ไม่สามารถรับตำแหน่งได้';
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            errorMessage = '⚠️ ไม่ได้อนุญาตให้เข้าถึงตำแหน่ง';
+            break;
+          case error.POSITION_UNAVAILABLE:
+            errorMessage = '⚠️ ตำแหน่งไม่พร้อมใช้งาน';
+            break;
+          case error.TIMEOUT:
+            errorMessage = '⚠️ หมดเวลาในการรับตำแหน่ง';
+            break;
+        }
+        setToastMessage(errorMessage);
+        setTimeout(() => setShowToast(false), 3000);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 300000 // 5 minutes
+      }
+    );
+  };
+  
+  const handleDropPin = () => {
+    if (drawingControlsRef.current?.isDrawing) return;
+    setToastMessage('📍 ' + (t('language') === 'th' ? 'คลิกบนแผนที่เพื่อเลือกตำแหน่ง' : 'Click on map to select location'));
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 3000);
+  };
+  
+  const handleDrawPolygon = () => {
+    if (drawingControlsRef.current?.startDrawing) {
+      drawingControlsRef.current.startDrawing();
+      setIsDrawing(true);
+      setToastMessage('🎨 ' + (t('language') === 'th' ? 'เริ่มวาด Polygon - คลิกเพื่อเพิ่มจุด, ดับเบิลคลิกเพื่อสิ้นสุด' : 'Start drawing - Click to add points, Double-click to finish'));
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 4000);
+    }
+  };
+  
+  const handleStopDrawing = () => {
+    if (drawingControlsRef.current?.stopDrawing) {
+      drawingControlsRef.current.stopDrawing();
+      setIsDrawing(false);
+    }
+  };
+  
+  const handlePolygonCreated = (polygon: any) => {
+    setPolygons(prev => [...prev, polygon]);
+    setIsDrawing(false);
+    setToastMessage(`✓ ${t('language') === 'th' ? 'สร้าง Polygon สำเร็จ' : 'Polygon created'} - ${(polygon.area / 1600).toFixed(2)} ${t('rai')}`);
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 3000);
+  };
+  
+  const handlePolygonDeleted = (id: string) => {
+    setPolygons(prev => prev.filter(p => p.id !== id));
+    setToastMessage('🗑️ ' + (t('language') === 'th' ? 'ลบ Polygon แล้ว' : 'Polygon deleted'));
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 2000);
+  };
+
+  const handleZoomIn = () => {
+    if (mapInstance) {
+      mapInstance.zoomIn();
+    }
+  };
+
+  const handleZoomOut = () => {
+    if (mapInstance) {
+      mapInstance.zoomOut();
+    }
+  };
+
+  return (
+    <div className="relative h-full flex flex-col">
+      <AppBar title={t('appTitle')} subtitle={t('appSubtitle')} theme="rice" />
+
+      {/* Map with Floating Buttons */}
+      <div className="flex-1 relative">
+        {/* Layer Switch */}
+        <LayerSwitch
+          activeLayer={activeLayer}
+          onLayerChange={setActiveLayer}
+          theme="rice"
+          isVisible={!isSheetExpanded}
+          onZoomIn={handleZoomIn}
+          onZoomOut={handleZoomOut}
+        />
+        
+        <MapWithDrawing 
+          theme="rice"
+          activeLayer={activeLayer}
+          onPolygonCreated={handlePolygonCreated}
+          onPolygonDeleted={handlePolygonDeleted}
+          onMapReady={setMapInstance}
+        >
+          {(controls: any) => {
+            drawingControlsRef.current = controls;
+            return (
+              <FloatingButtons
+                theme="rice"
+                isDrawing={controls.isDrawing}
+                onLocateMe={handleLocateMe}
+                onDropPin={handleDropPin}
+                onDrawPolygon={handleDrawPolygon}
+                onStopDrawing={handleStopDrawing}
+                onEdit={() => {
+                  setToastMessage('💡 ' + (t('language') === 'th' ? 'คลิกที่ Polygon บนแผนที่ แล้วกดปุ่ม "ลบ" ใน popup' : 'Click on polygon, then press "Delete" in popup'));
+                  setShowToast(true);
+                  setTimeout(() => setShowToast(false), 3000);
+                }}
+                onZoomIn={handleZoomIn}
+                onZoomOut={handleZoomOut}
+              />
+            );
+          }}
+        </MapWithDrawing>
+
+        {/* Bottom Sheet with Form */}
+        <BottomSheet title={`${t('riceTitle')} (${t('riceSubtitle')})`} status="draft" theme="rice" onExpandChange={setIsSheetExpanded}>
+          <RiceBurnForm onSave={handleSave} onSaveDraft={handleSaveDraft} polygons={polygons} onNavigateToMap={handleNavigateToMap} />
+        </BottomSheet>
+      </div>
+
+      {/* Toast Notification */}
+      {showToast && <Toast message={toastMessage} />}
+    </div>
+  );
+}

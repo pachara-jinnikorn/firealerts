@@ -1,0 +1,81 @@
+import { createClient } from '@supabase/supabase-js';
+import { SavedRecord, storage } from './storage';
+
+// Replace with your actual project credentials from Supabase Settings > API
+const supabaseUrl = 'https://qrqubfyuxpzdksnijhhy.supabase.co';
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFycXViZnl1eHB6ZGtzbmlqaGh5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc2ODUwOTUsImV4cCI6MjA4MzI2MTA5NX0.oHTo182eAacbtUQQ9ex8n7R7gEKRe4SP2FE-rjb8Bso';
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+export const syncToCloud = async () => {
+  // Only sync records that are 'saved' (not drafts) and not yet synced
+  const recordsToSync = storage.getRecords().filter(r => r.status === 'saved' && !r.synced);
+  
+  if (recordsToSync.length === 0) return { success: true, count: 0 };
+
+  for (const record of recordsToSync) {
+    try {
+      // 1. Insert the main record
+      const { data: remoteRecord, error: recordError } = await supabase
+        .from('burn_records')
+        .insert({
+          record_type: record.type === 'rice' ? 'ข้าว' : 'อ้อย',
+          notes: record.remarks,
+          // PostGIS requires Longitude then Latitude: POINT(lng lat)
+          location: `POINT(${record.location.lng} ${record.location.lat})`,
+          local_id: record.id
+        })
+        .select()
+        .single();
+
+      if (recordError) throw recordError;
+
+      // 2. Insert Polygons (swapping coordinates to [lng, lat] for GeoJSON)
+      if (record.polygons && record.polygons.length > 0) {
+        const polygonInserts = record.polygons.map(p => ({
+          record_id: remoteRecord.id,
+          geometry: {
+            type: "Polygon",
+            coordinates: [p.points.map(pt => [pt[1], pt[0]])]
+          },
+          area_sqm: p.area
+        }));
+
+        await supabase.from('burn_polygons').insert(polygonInserts);
+      }
+
+      // 3. Handle Photos (Convert Base64 to Blob and upload to bucket)
+      if (record.photos && record.photos.length > 0) {
+        for (const [index, base64] of record.photos.entries()) {
+          // Skip unsplash URLs if they are sample data
+          if (base64.startsWith('http')) continue; 
+
+          const blob = await fetch(base64).then(res => res.blob());
+          const path = `${remoteRecord.id}/photo_${index}.jpg`;
+
+          const { error: uploadError } = await supabase.storage
+            .from('burn-photos')
+            .upload(path, blob);
+
+          if (!uploadError) {
+            await supabase.from('burn_photos').insert({
+              record_id: remoteRecord.id,
+              storage_path: path
+            });
+          }
+        }
+      }
+
+      // 4. Update local record as synced
+      storage.saveRecord({
+        ...record,
+        synced: true,
+        supabaseId: remoteRecord.id
+      });
+
+    } catch (err) {
+      console.error(`Failed to sync record ${record.id}:`, err);
+    }
+  }
+  return { success: true, count: recordsToSync.length };
+};
