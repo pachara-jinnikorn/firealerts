@@ -5,6 +5,7 @@ import { storage, SavedRecord } from '../../utils/storage';
 import { RecordDetailModal } from '../RecordDetailModal';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { syncToCloud } from '../../utils/supabaseService';
+import { DatabaseService } from '../../service/database.service';
 
 export function HistoryScreen() {
   const { t, language } = useLanguage();
@@ -59,8 +60,19 @@ export function HistoryScreen() {
     }
   };
 
-  const handleDelete = (id: string) => {
-    if (confirm(t('confirmDelete'))) {
+  const handleDelete = async (id: string) => {
+    if (!confirm(t('confirmDelete'))) return;
+    const record = records.find(r => r.id === id);
+    try {
+      if (record?.supabaseId) {
+        const ok = await DatabaseService.deleteRecord(record.supabaseId);
+        if (!ok) {
+          alert(language === 'th' ? 'ลบข้อมูลบนคลาวด์ไม่สำเร็จ' : 'Failed to delete on cloud');
+        }
+      }
+    } catch (e) {
+      alert(language === 'th' ? 'เกิดข้อผิดพลาดในการลบบนคลาวด์' : 'Error deleting on cloud');
+    } finally {
       storage.deleteRecord(id);
       loadRecords();
     }
