@@ -25,6 +25,47 @@ export function HistoryScreen() {
   }, []);
 
   useEffect(() => {
+    const loadFromCloud = async () => {
+      try {
+        const remote = await DatabaseService.getUserRecords();
+        if (!remote || remote.length === 0) return;
+        const toSaved: SavedRecord[] = remote.map(r => {
+          const typeMapped = r.type === 'ข้าว' || r.type === 'rice' ? 'rice' : 'sugarcane';
+          const created = new Date(r.timestamp);
+          const dateStr = created.toISOString().slice(0, 10);
+          const timeStr = created.toTimeString().slice(0, 5);
+          const polys = (r.polygons || []).map((poly: any) => {
+            const points = (poly.coordinates || []).map(([lng, lat]: [number, number]) => [lat, lng] as [number, number]);
+            const area = computeArea(points);
+            const color = typeMapped === 'rice' ? '#ef4444' : '#ef4444';
+            return { id: Math.random().toString(36).slice(2), points, area, type: 'burn', color };
+          });
+          return {
+            id: r.id,
+            type: typeMapped,
+            date: dateStr,
+            time: timeStr,
+            location: { lat: r.location.lat, lng: r.location.lng, accuracy: 5 },
+            polygons: polys,
+            riceFieldType: undefined,
+            riceVariety: undefined,
+            burnType: undefined,
+            activities: undefined,
+            remarks: r.notes || '',
+            photos: r.photos || [],
+            createdAt: created.toISOString(),
+            status: 'saved',
+            synced: true,
+          };
+        });
+        toSaved.forEach(rec => storage.saveRecord(rec));
+        loadRecords();
+      } catch {}
+    };
+    loadFromCloud();
+  }, []);
+
+  useEffect(() => {
     filterRecords();
   }, [records, searchQuery, filterType, filterStatus]);
 
@@ -45,6 +86,22 @@ export function HistoryScreen() {
       );
     }
     setFilteredRecords(filtered);
+  };
+
+  const computeArea = (points: [number, number][]) => {
+    if (!points || points.length < 3) return 0;
+    const earthRadius = 6371000;
+    let area = 0;
+    for (let i = 0; i < points.length; i++) {
+      const j = (i + 1) % points.length;
+      const lat1 = points[i][0] * Math.PI / 180;
+      const lat2 = points[j][0] * Math.PI / 180;
+      const lng1 = points[i][1] * Math.PI / 180;
+      const lng2 = points[j][1] * Math.PI / 180;
+      area += (lng2 - lng1) * (2 + Math.sin(lat1) + Math.sin(lat2));
+    }
+    area = Math.abs(area * earthRadius * earthRadius / 2);
+    return area;
   };
 
   const handleSyncToCloud = async () => {
@@ -250,6 +307,7 @@ export function HistoryScreen() {
       alert(t('exportError'));
     }
   };
+  
 
   const stats = storage.getStats();
 

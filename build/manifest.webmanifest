@@ -1,0 +1,12 @@
+{
+  "name": "Fire Alerts",
+  "short_name": "FireAlerts",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#f59e0b",
+  "orientation": "portrait",
+  "prefer_related_applications": false,
+  "icons": []
+}

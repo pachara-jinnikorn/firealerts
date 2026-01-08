@@ -1,4 +1,4 @@
-import { X, Save, ArrowLeft } from 'lucide-react';
+import { X, Save, ArrowLeft, FileText } from 'lucide-react';
 import { SavedRecord, storage } from '../utils/storage';
 import { useEffect, useRef, useState } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -13,6 +13,90 @@ export function RecordDetailModal({ record, onClose }: RecordDetailModalProps) {
   const mapRef = useRef<any>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const [currentStatus, setCurrentStatus] = useState(record.status);
+  const exportPDF = async () => {
+    const { jsPDF } = await import('jspdf');
+    const html2canvas = (await import('html2canvas')).default;
+    const doc = new jsPDF('p', 'mm', 'a4');
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 10;
+    const totalArea = record.polygons.reduce((sum, p) => sum + p.area, 0) / 1600;
+    const burnArea = record.polygons.filter(p => p.type === 'burn').reduce((sum, p) => sum + p.area, 0) / 1600;
+    const noBurnArea = record.polygons.filter(p => p.type === 'non-burn').reduce((sum, p) => sum + p.area, 0) / 1600;
+    const container = document.createElement('div');
+    container.style.position = 'fixed';
+    container.style.left = '-10000px';
+    container.style.top = '0';
+    container.style.width = '800px';
+    container.style.background = '#ffffff';
+    container.style.color = '#111827';
+    container.style.fontFamily = 'system-ui, -apple-system, Segoe UI, Roboto, Noto Sans Thai, TH Sarabun New, Arial, sans-serif';
+    container.style.padding = '24px';
+    container.innerHTML = `
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <div style="font-size:24px">${record.type === 'rice' ? '🌾' : '🌿'}</div>
+        <div style="font-weight:600">${record.type === 'rice' ? t('rice') : t('sugarcane')}</div>
+        <div style="margin-left:auto;font-size:12px;color:#6b7280">${record.date} ${record.time}</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+        <div style="padding:8px;border:1px solid #e5e7eb;border-radius:12px">
+          <div style="font-size:12px;color:#6b7280">${t('totalArea')}</div>
+          <div style="font-size:18px;font-weight:700">${totalArea.toFixed(2)} ${t('rai')} • ${record.polygons.length} ${t('polygon')}</div>
+        </div>
+        <div style="padding:8px;border:1px solid #e5e7eb;border-radius:12px">
+          <div style="font-size:12px;color:#6b7280">${t('location')}</div>
+          <div style="font-size:12px;font-family:monospace">${record.location.lat.toFixed(6)}°, ${record.location.lng.toFixed(6)}°</div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+        <div style="padding:8px;border:1px solid #fee2e2;border-radius:12px;background:#fef2f2">
+          <div style="font-size:12px;color:#ef4444">${t('burnArea')}</div>
+          <div style="font-size:16px;font-weight:700">${burnArea.toFixed(2)} ${t('rai')}</div>
+        </div>
+        <div style="padding:8px;border:1px solid #dcfce7;border-radius:12px;background:#f0fdf4">
+          <div style="font-size:12px;color:#10b981">${t('noBurnArea')}</div>
+          <div style="font-size:16px;font-weight:700">${noBurnArea.toFixed(2)} ${t('rai')}</div>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:12px;font-weight:600;color:#374151;margin-bottom:6px">${t('polygonList')}</div>
+        <div style="display:flex;flex-direction:column;gap:4px">
+          ${record.polygons.map((p, i) => `
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:6px;border:1px solid #e5e7eb;border-radius:10px;background:#fafafa">
+              <div style="display:flex;align-items:center;gap:6px">
+                <div style="width:12px;height:12px;border-radius:3px;background:${p.color}"></div>
+                <div style="font-size:12px">${p.type === 'burn' ? '🔥' : '🌱'} Polygon #${i + 1}</div>
+              </div>
+              <div style="font-size:12px;font-weight:600">${(p.area / 1600).toFixed(2)} ${t('rai')}</div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+      ${record.photos && record.photos.length ? `
+        <div style="margin-top:10px">
+          <div style="font-size:12px;font-weight:600;color:#374151;margin-bottom:6px">${t('photos')} (${record.photos.length})</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+            ${record.photos.map((photo, idx) => `
+              <div style="border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;background:#f3f4f6">
+                <img src="${photo}" style="width:100%;height:160px;object-fit:cover" />
+                <div style="font-size:11px;color:#6b7280;padding:4px 6px">${t('photos')} ${idx + 1}</div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      ` : ''}
+    `;
+    document.body.appendChild(container);
+    const canvas = await html2canvas(container, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+    const imgData = canvas.toDataURL('image/png');
+    const imgWidth = pageWidth - margin * 2;
+    const imgHeight = canvas.height * (imgWidth / canvas.width);
+    doc.addImage(imgData, 'PNG', margin, margin, imgWidth, Math.min(imgHeight, pageHeight - margin * 2));
+    document.body.removeChild(container);
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const filename = language === 'th' ? `ข้อมูลพื้นที่เผา_${timestamp}.pdf` : `BurnAreaData_${timestamp}.pdf`;
+    doc.save(filename);
+  };
 
   const handleSaveDraft = () => {
     if (confirm(t('confirmSaveDraft'))) {
@@ -149,6 +233,12 @@ export function RecordDetailModal({ record, onClose }: RecordDetailModalProps) {
 
         {/* Content */}
         <div className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 100px)' }}>
+          <div className="flex items-center gap-2 px-6 py-3 bg-white border-b border-gray-200">
+            <button onClick={exportPDF} className="px-3 py-2 bg-blue-600 text-white rounded-xl flex items-center gap-2 text-sm hover:bg-blue-700 transition-colors">
+              <FileText className="w-4 h-4" />
+              <span>PDF</span>
+            </button>
+          </div>
           {/* Map */}
           <div ref={mapContainerRef} className="h-64 bg-gray-100"></div>
 

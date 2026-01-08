@@ -91,6 +91,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (data.user) {
         console.log('Sign in successful:', data.user.email);
         setUser(data.user);
+        try {
+          localStorage.setItem('current_user_id', data.user.id || '');
+        } catch {}
       }
       
       return { error: null };
