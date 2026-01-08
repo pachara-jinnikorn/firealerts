@@ -174,10 +174,12 @@ export function RiceBurnScreen() {
   
   const handlePolygonCreated = (polygon: any) => {
     console.log('✅ Polygon created in screen:', polygon);
-    setPolygons(prev => [...prev, polygon]);
-    setToastMessage(`✓ ${language === 'th' ? 'สร้าง Polygon สำเร็จ' : 'Polygon created'} - ${(polygon.area / 1600).toFixed(2)} ${t('rai')}`);
-    setShowToast(true);
-    setTimeout(() => setShowToast(false), 3000);
+    setTimeout(() => {
+      setPolygons(prev => [...prev, polygon]);
+      setToastMessage(`✓ ${language === 'th' ? 'สร้าง Polygon สำเร็จ' : 'Polygon created'} - ${(polygon.area / 1600).toFixed(2)} ${t('rai')}`);
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+    }, 0);
   };
   
   const handlePolygonDeleted = (id: string) => {

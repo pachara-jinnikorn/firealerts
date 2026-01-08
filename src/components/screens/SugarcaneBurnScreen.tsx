@@ -175,11 +175,13 @@ export function SugarcaneBurnScreen() {
   
   const handlePolygonCreated = (polygon: any) => {
     console.log('✅ Polygon created in screen:', polygon);
-    setPolygons(prev => [...prev, polygon]);
-    const layerText = polygon.type === 'burn' ? `🔥 ${t('burnArea')}` : `🌱 ${t('noBurnArea')}`;
-    setToastMessage(`✓ ${language === 'th' ? 'สร้าง' : 'Created'} ${layerText} - ${(polygon.area / 1600).toFixed(2)} ${t('rai')}`);
-    setShowToast(true);
-    setTimeout(() => setShowToast(false), 3000);
+    setTimeout(() => {
+      setPolygons(prev => [...prev, polygon]);
+      const layerText = polygon.type === 'burn' ? `🔥 ${t('burnArea')}` : `🌱 ${t('noBurnArea')}`;
+      setToastMessage(`✓ ${language === 'th' ? 'สร้าง' : 'Created'} ${layerText} - ${(polygon.area / 1600).toFixed(2)} ${t('rai')}`);
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+    }, 0);
   };
   
   const handlePolygonDeleted = (id: string) => {
