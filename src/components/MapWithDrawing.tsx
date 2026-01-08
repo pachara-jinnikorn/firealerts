@@ -15,6 +15,7 @@ interface MapWithDrawingProps {
   onPolygonCreated?: (polygon: Polygon) => void;
   onPolygonDeleted?: (id: string) => void;
   onMapReady?: (map: any) => void;
+  onLocationSelected?: (location: { lat: number; lng: number }) => void;
 }
 
 export function MapWithDrawing({ 
@@ -23,12 +24,14 @@ export function MapWithDrawing({
   activeLayer = 'burn',
   onPolygonCreated,
   onPolygonDeleted,
-  onMapReady
+  onMapReady,
+  onLocationSelected
 }: MapWithDrawingProps) {
   const mapRef = useRef<any>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const [userLocation, setUserLocation] = useState({ lat: 13.7563, lng: 100.5018 });
   const [isDrawing, setIsDrawing] = useState(false);
+  const [isPinDropping, setIsPinDropping] = useState(false);
   const [drawingPoints, setDrawingPoints] = useState<[number, number][]>([]);
   const [polygons, setPolygons] = useState<Polygon[]>([]);
   const markersRef = useRef<any[]>([]);
@@ -36,6 +39,23 @@ export function MapWithDrawing({
   const tempMarkersRef = useRef<any[]>([]);
   const tempLineRef = useRef<any>(null);
   const LRef = useRef<any>(null);
+  
+  // Refs to access latest state in callbacks/closures
+  const activeLayerRef = useRef(activeLayer);
+  const themeRef = useRef(theme);
+  const drawingPointsRef = useRef(drawingPoints);
+
+  useEffect(() => {
+    activeLayerRef.current = activeLayer;
+  }, [activeLayer]);
+
+  useEffect(() => {
+    themeRef.current = theme;
+  }, [theme]);
+
+  useEffect(() => {
+    drawingPointsRef.current = drawingPoints;
+  }, [drawingPoints]);
 
   // Calculate polygon area using Leaflet GeometryUtil
   const calculateArea = (points: [number, number][]) => {
@@ -62,6 +82,7 @@ export function MapWithDrawing({
   const startDrawing = () => {
     console.log('🎨 Starting drawing mode...');
     setIsDrawing(true);
+    setIsPinDropping(false); // Ensure pin dropping is off
     setDrawingPoints([]);
     // Clear temporary markers
     tempMarkersRef.current.forEach(m => m.remove());
@@ -72,22 +93,26 @@ export function MapWithDrawing({
     }
   };
 
-  const stopDrawing = () => {
+  const stopDrawing = (pointsArg?: [number, number][]) => {
     console.log('⏸️ Stopping drawing mode...');
     setIsDrawing(false);
     
-    if (drawingPoints.length >= 3) {
+    const points = pointsArg && pointsArg.length ? pointsArg : drawingPointsRef.current;
+    if (points.length >= 3) {
       // Create polygon
-      const area = calculateArea(drawingPoints);
-      const color = activeLayer === 'burn' 
-        ? (theme === 'rice' ? '#f59e0b' : '#ef4444')
+      const area = calculateArea(points);
+      const currentActiveLayer = activeLayerRef.current;
+      const currentTheme = themeRef.current;
+
+      const color = currentActiveLayer === 'burn' 
+        ? (currentTheme === 'rice' ? '#f59e0b' : '#ef4444')
         : '#10b981';
       
       const newPolygon: Polygon = {
         id: Date.now().toString(),
-        points: drawingPoints,
+        points: points,
         area,
-        type: activeLayer,
+        type: currentActiveLayer,
         color,
       };
       
@@ -99,7 +124,7 @@ export function MapWithDrawing({
       
       // Draw polygon on map
       if (LRef.current && mapRef.current) {
-        const polygonLayer = LRef.current.polygon(drawingPoints, {
+        const polygonLayer = LRef.current.polygon(points, {
           color: color,
           fillColor: color,
           fillOpacity: 0.3,
@@ -107,11 +132,11 @@ export function MapWithDrawing({
         }).addTo(mapRef.current);
         
         const areaInRai = (area / 1600).toFixed(2);
-        const layerName = activeLayer === 'burn' ? '🔥 พื้นที่เผา' : '🌱 พื้นที่ไม่เผา';
+        const layerName = currentActiveLayer === 'burn' ? '🔥 พื้นที่เผา' : '🌱 พื้นที่ไม่เผา';
         
         polygonLayer.bindPopup(`
           <div class="text-sm">
-            <strong class="${activeLayer === 'burn' ? 'text-red-600' : 'text-green-600'}">${layerName}</strong><br/>
+            <strong class="${currentActiveLayer === 'burn' ? 'text-red-600' : 'text-green-600'}">${layerName}</strong><br/>
             <span class="text-lg font-semibold">${areaInRai} ไร่</span><br/>
             <span class="text-xs text-gray-600">≈ ${Math.round(area)} ตร.ม.</span><br/>
             <button class="mt-2 px-3 py-1 bg-red-500 text-white text-xs rounded-lg hover:bg-red-600" onclick="window.deletePolygon('${newPolygon.id}')">
@@ -145,6 +170,28 @@ export function MapWithDrawing({
     if (onPolygonDeleted) {
       onPolygonDeleted(id);
     }
+  };
+
+  const startPinDrop = () => {
+    console.log('📍 Starting pin drop mode...');
+    setIsPinDropping(true);
+    setIsDrawing(false); // Ensure drawing is off
+  };
+
+  const stopPinDrop = () => {
+    console.log('📍 Stopping pin drop mode...');
+    setIsPinDropping(false);
+  };
+ 
+  const togglePinDrop = () => {
+    setIsPinDropping(prev => {
+      const next = !prev;
+      console.log('📍 Toggling pin drop mode:', next);
+      if (next) {
+        setIsDrawing(false);
+      }
+      return next;
+    });
   };
 
   useEffect(() => {
@@ -213,7 +260,11 @@ export function MapWithDrawing({
 
       // Map click handler - FIXED
       map.on('click', (e: any) => {
-        console.log('🖱️ Map clicked. Drawing mode:', isDrawing);
+        const originalTarget = e.originalEvent ? (e.originalEvent.target as HTMLElement) : null;
+        if (originalTarget && originalTarget.closest('.overlay-controls')) {
+          return;
+        }
+        console.log('🖱️ Map clicked. Drawing mode:', (window as any).__isDrawingMode);
         
         // Check if we're in drawing mode using the current state from the ref
         // We need to use a ref to get the latest state in the event handler
@@ -225,10 +276,12 @@ export function MapWithDrawing({
             const updated = [...prev, newPoint];
             console.log(`📍 Total points: ${updated.length}`);
             
+            const currentActiveLayer = activeLayerRef.current;
+
             // Add temporary marker
             const marker = L.circleMarker([e.latlng.lat, e.latlng.lng], {
               radius: 6,
-              fillColor: activeLayer === 'burn' ? '#ef4444' : '#10b981',
+              fillColor: currentActiveLayer === 'burn' ? '#ef4444' : '#10b981',
               color: '#fff',
               weight: 2,
               opacity: 1,
@@ -244,17 +297,29 @@ export function MapWithDrawing({
             
             if (updated.length > 1) {
               tempLineRef.current = L.polyline(updated, {
-                color: activeLayer === 'burn' ? '#ef4444' : '#10b981',
+                color: currentActiveLayer === 'burn' ? '#ef4444' : '#10b981',
                 weight: 2,
                 dashArray: '5, 5',
               }).addTo(map);
             }
             
+            if (updated.length >= 3 && LRef.current) {
+              const first = updated[0];
+              const current = newPoint;
+              const firstLatLng = LRef.current.latLng(first[0], first[1]);
+              const currentLatLng = LRef.current.latLng(current[0], current[1]);
+              const distance = currentLatLng.distanceTo(firstLatLng);
+              const threshold = 30;
+              if (distance <= threshold) {
+                stopDrawing(updated);
+              }
+            }
+            
             return updated;
           });
-        } else {
-          console.log('📌 Regular pin drop mode');
-          // Regular pin drop
+        } else if ((window as any).__isPinDropping) {
+          console.log('📌 Pin drop mode active');
+          // Pin drop only when mode is active
           markersRef.current.forEach(m => m.remove());
           markersRef.current = [];
 
@@ -280,11 +345,21 @@ export function MapWithDrawing({
           `).openPopup();
 
           markersRef.current.push(newMarker);
+          
+          if (onLocationSelected) {
+            onLocationSelected({ lat: e.latlng.lat, lng: e.latlng.lng });
+          }
+        } else {
+          // No pin dropping; allow normal map interactions (pan/zoom)
         }
       });
 
       // Double click to finish drawing - FIXED
       map.on('dblclick', (e: any) => {
+        const originalTarget = e.originalEvent ? (e.originalEvent.target as HTMLElement) : null;
+        if (originalTarget && originalTarget.closest('.overlay-controls')) {
+          return;
+        }
         if ((window as any).__isDrawingMode) {
           console.log('✅ Double-click detected - finishing polygon');
           L.DomEvent.stopPropagation(e);
@@ -295,7 +370,6 @@ export function MapWithDrawing({
 
       mapRef.current = map;
 
-      // Get user location
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
           (position) => {
@@ -305,9 +379,7 @@ export function MapWithDrawing({
             map.setView([newLat, newLng], 15);
             userMarker.setLatLng([newLat, newLng]);
           },
-          (error) => {
-            console.log('Geolocation error:', error);
-          }
+          () => {}
         );
       }
 
@@ -325,13 +397,19 @@ export function MapWithDrawing({
         mapRef.current = null;
       }
     };
-  }, [activeLayer, theme]); // Dependencies
+  }, []); // Dependencies - Init map once
 
   // Update drawing mode flag when state changes
   useEffect(() => {
     (window as any).__isDrawingMode = isDrawing;
     console.log('🔄 Drawing mode updated:', isDrawing);
   }, [isDrawing]);
+
+  // Update pin drop mode flag when state changes
+  useEffect(() => {
+    (window as any).__isPinDropping = isPinDropping;
+    console.log('🔄 Pin drop mode updated:', isPinDropping);
+  }, [isPinDropping]);
 
   // Clear temp drawings if stopped without completing
   useEffect(() => {
@@ -351,7 +429,11 @@ export function MapWithDrawing({
     startDrawing,
     stopDrawing,
     isDrawing,
-    polygons
+    polygons,
+    startPinDrop,
+    stopPinDrop,
+    togglePinDrop,
+    isPinDropping,
   };
 
   return (
@@ -420,7 +502,12 @@ export function MapWithDrawing({
         )}
 
         {/* Children (Floating Buttons) - pass drawing controls */}
-        <div className="relative z-[1000]">
+        <div
+          className="overlay-controls relative z-[1000]"
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+          onDoubleClick={(e) => e.stopPropagation()}
+        >
           {typeof children === 'function' 
             ? children(controls)
             : children

@@ -17,12 +17,23 @@ export function RiceBurnScreen() {
   const [polygons, setPolygons] = useState<any[]>([]);
   const [isSheetExpanded, setIsSheetExpanded] = useState(true);
   const [mapInstance, setMapInstance] = useState<any>(null);
+  const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: number } | null>(null);
 
   // NEW: Store the drawing controls from the map
   const [drawingControls, setDrawingControls] = useState<any>(null);
 
   const handleNavigateToMap = () => {
     setIsSheetExpanded(false);
+    if ((window as any).__isPinDropping) {
+      // already active
+    } else if (drawingControls?.togglePinDrop) {
+      drawingControls.togglePinDrop();
+    } else if (drawingControls?.startPinDrop) {
+      drawingControls.startPinDrop();
+    }
+    setToastMessage('📍 ' + (t('language') === 'th' ? 'คลิกบนแผนที่เพื่อเลือกตำแหน่ง' : 'Click on map to select location'));
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 3000);
   };
 
   const handleSave = (data: any) => {
@@ -91,7 +102,6 @@ export function RiceBurnScreen() {
       setTimeout(() => setShowToast(false), 3000);
       return;
     }
-
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
@@ -104,7 +114,6 @@ export function RiceBurnScreen() {
         setTimeout(() => setShowToast(false), 3000);
       },
       (error) => {
-        console.error('GPS Error:', error);
         let errorMessage = '⚠️ ไม่สามารถรับตำแหน่งได้';
         switch (error.code) {
           case error.PERMISSION_DENIED:
@@ -123,14 +132,20 @@ export function RiceBurnScreen() {
       {
         enableHighAccuracy: true,
         timeout: 10000,
-        maximumAge: 300000 // 5 minutes
+        maximumAge: 300000
       }
     );
   };
   
   const handleDropPin = () => {
     if (drawingControls?.isDrawing) return;
-    setToastMessage('📍 ' + (t('language') === 'th' ? 'คลิกบนแผนที่เพื่อเลือกตำแหน่ง' : 'Click on map to select location'));
+    const wasDropping = (window as any).__isPinDropping;
+    drawingControls?.togglePinDrop?.();
+    setToastMessage(
+      wasDropping
+        ? '🚫 ' + (t('language') === 'th' ? 'ปิดโหมดปักหมุด' : 'Pin drop mode disabled')
+        : '📍 ' + (t('language') === 'th' ? 'คลิกบนแผนที่เพื่อเลือกตำแหน่ง' : 'Click on map to select location')
+    );
     setShowToast(true);
     setTimeout(() => setShowToast(false), 3000);
   };
@@ -207,6 +222,12 @@ export function RiceBurnScreen() {
           onPolygonCreated={handlePolygonCreated}
           onPolygonDeleted={handlePolygonDeleted}
           onMapReady={setMapInstance}
+          onLocationSelected={(loc) => {
+            setSelectedLocation(loc);
+            setToastMessage(`✅ ${t('location')} ${loc.lat.toFixed(6)}, ${loc.lng.toFixed(6)}`);
+            setShowToast(true);
+            setTimeout(() => setShowToast(false), 2500);
+          }}
         >
           {(controls: any) => {
             // Store the controls for use in button handlers
@@ -219,6 +240,7 @@ export function RiceBurnScreen() {
               <FloatingButtons
                 theme="rice"
                 isDrawing={controls?.isDrawing || false}
+                isPinDropping={controls?.isPinDropping || false}
                 onLocateMe={handleLocateMe}
                 onDropPin={handleDropPin}
                 onDrawPolygon={handleDrawPolygon}
@@ -235,7 +257,7 @@ export function RiceBurnScreen() {
 
         {/* Bottom Sheet with Form */}
         <BottomSheet title={`${t('riceTitle')} (${t('riceSubtitle')})`} status="draft" theme="rice" onExpandChange={setIsSheetExpanded}>
-          <RiceBurnForm onSave={handleSave} onSaveDraft={handleSaveDraft} polygons={polygons} onNavigateToMap={handleNavigateToMap} />
+          <RiceBurnForm onSave={handleSave} onSaveDraft={handleSaveDraft} polygons={polygons} onNavigateToMap={handleNavigateToMap} mapSelectedLocation={selectedLocation} />
         </BottomSheet>
       </div>
 

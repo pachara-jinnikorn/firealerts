@@ -17,12 +17,21 @@ export function SugarcaneBurnScreen() {
   const [polygons, setPolygons] = useState<any[]>([]);
   const [isSheetExpanded, setIsSheetExpanded] = useState(true);
   const [mapInstance, setMapInstance] = useState<any>(null);
+  const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: number } | null>(null);
 
   // NEW: Store the drawing controls from the map
   const [drawingControls, setDrawingControls] = useState<any>(null);
 
   const handleNavigateToMap = () => {
     setIsSheetExpanded(false);
+    if (drawingControls?.togglePinDrop) {
+      drawingControls.togglePinDrop();
+    } else if (drawingControls?.startPinDrop) {
+      drawingControls.startPinDrop();
+    }
+    setToastMessage('📍 ' + (language === 'th' ? 'คลิกบนแผนที่เพื่อเลือกตำแหน่ง' : 'Click on map to select location'));
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 3000);
   };
 
   const handleSave = (data: any) => {
@@ -93,7 +102,6 @@ export function SugarcaneBurnScreen() {
       setTimeout(() => setShowToast(false), 3000);
       return;
     }
-
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
@@ -106,7 +114,6 @@ export function SugarcaneBurnScreen() {
         setTimeout(() => setShowToast(false), 3000);
       },
       (error) => {
-        console.error('GPS Error:', error);
         let errorMessage = '⚠️ ไม่สามารถรับตำแหน่งได้';
         switch (error.code) {
           case error.PERMISSION_DENIED:
@@ -125,14 +132,20 @@ export function SugarcaneBurnScreen() {
       {
         enableHighAccuracy: true,
         timeout: 10000,
-        maximumAge: 300000 // 5 minutes
+        maximumAge: 300000
       }
     );
   };
   
   const handleDropPin = () => {
     if (drawingControls?.isDrawing) return;
-    setToastMessage('📍 ' + (language === 'th' ? 'คลิกบนแผนที่เพื่อเลือกตำแหน่ง' : 'Click on map to select location'));
+    const wasDropping = (window as any).__isPinDropping;
+    drawingControls?.togglePinDrop?.();
+    setToastMessage(
+      wasDropping
+        ? '🚫 ' + (language === 'th' ? 'ปิดโหมดปักหมุด' : 'Pin drop mode disabled')
+        : '📍 ' + (language === 'th' ? 'คลิกบนแผนที่เพื่อเลือกตำแหน่ง' : 'Click on map to select location')
+    );
     setShowToast(true);
     setTimeout(() => setShowToast(false), 3000);
   };
@@ -201,6 +214,12 @@ export function SugarcaneBurnScreen() {
           onPolygonCreated={handlePolygonCreated}
           onPolygonDeleted={handlePolygonDeleted}
           onMapReady={setMapInstance}
+          onLocationSelected={(loc) => {
+            setSelectedLocation(loc);
+            setToastMessage(`✅ ${t('location')} ${loc.lat.toFixed(6)}, ${loc.lng.toFixed(6)}`);
+            setShowToast(true);
+            setTimeout(() => setShowToast(false), 2500);
+          }}
         >
           {(controls: any) => {
             // Store the controls for use in button handlers
@@ -222,6 +241,7 @@ export function SugarcaneBurnScreen() {
                 <FloatingButtons
                   theme="sugarcane"
                   isDrawing={controls?.isDrawing || false}
+                  isPinDropping={controls?.isPinDropping || false}
                   onLocateMe={handleLocateMe}
                   onDropPin={handleDropPin}
                   onDrawPolygon={handleDrawPolygon}
@@ -239,7 +259,7 @@ export function SugarcaneBurnScreen() {
 
         {/* Bottom Sheet with Form */}
         <BottomSheet title={`${t('sugarcaneTitle')} (${t('sugarcaneSubtitle')})`} status="draft" theme="sugarcane" onExpandChange={setIsSheetExpanded}>
-          <SugarcaneBurnForm onSave={handleSave} onSaveDraft={handleSaveDraft} polygons={polygons} onNavigateToMap={handleNavigateToMap} />
+          <SugarcaneBurnForm onSave={handleSave} onSaveDraft={handleSaveDraft} polygons={polygons} onNavigateToMap={handleNavigateToMap} mapSelectedLocation={selectedLocation} />
         </BottomSheet>
       </div>
 

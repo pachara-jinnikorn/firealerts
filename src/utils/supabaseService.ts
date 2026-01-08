@@ -1,11 +1,8 @@
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '../lib/supabaseClient';
 import { SavedRecord, storage } from './storage';
 
-// Replace with your actual project credentials from Supabase Settings > API
-const supabaseUrl = 'https://qrqubfyuxpzdksnijhhy.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFycXViZnl1eHB6ZGtzbmlqaGh5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc2ODUwOTUsImV4cCI6MjA4MzI2MTA5NX0.oHTo182eAacbtUQQ9ex8n7R7gEKRe4SP2FE-rjb8Bso';
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Export the shared instance if needed by other modules (though direct import from lib is preferred)
+export { supabase };
 
 export const syncToCloud = async () => {
   // Check if user is authenticated

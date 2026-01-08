@@ -137,7 +137,6 @@ export function MapView({ children, theme = 'rice' }: MapViewProps) {
 
       mapRef.current = map;
 
-      // Try to get user's actual location
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
           (position) => {
@@ -147,9 +146,7 @@ export function MapView({ children, theme = 'rice' }: MapViewProps) {
             map.setView([newLat, newLng], 15);
             userMarker.setLatLng([newLat, newLng]);
           },
-          (error) => {
-            console.log('Geolocation error:', error);
-          }
+          () => {}
         );
       }
     };

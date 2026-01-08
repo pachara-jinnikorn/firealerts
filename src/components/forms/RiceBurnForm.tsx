@@ -2,15 +2,17 @@ import { useState, useEffect } from 'react';
 import { Calendar, Clock, MapPin, Camera, X, Flame, Sprout, RefreshCw } from 'lucide-react';
 import { SegmentedControl } from '../form-fields/SegmentedControl';
 import { Toggle } from '../form-fields/Toggle';
+ 
 
 interface RiceBurnFormProps {
   onSave: (data: any) => void;
   onSaveDraft: (data: any) => void;
   polygons?: any[];
   onNavigateToMap?: () => void;
+  mapSelectedLocation?: { lat: number; lng: number } | null;
 }
 
-export function RiceBurnForm({ onSave, onSaveDraft, polygons = [], onNavigateToMap }: RiceBurnFormProps) {
+export function RiceBurnForm({ onSave, onSaveDraft, polygons = [], onNavigateToMap, mapSelectedLocation }: RiceBurnFormProps) {
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [time, setTime] = useState(new Date().toTimeString().slice(0, 5));
   const [gpsEnabled, setGpsEnabled] = useState(true);
@@ -30,17 +32,21 @@ export function RiceBurnForm({ onSave, onSaveDraft, polygons = [], onNavigateToM
       getCurrentLocation();
     }
   }, [gpsEnabled]);
+  
+  useEffect(() => {
+    if (mapSelectedLocation) {
+      setCurrentLocation({ lat: mapSelectedLocation.lat, lng: mapSelectedLocation.lng, accuracy: currentLocation?.accuracy });
+    }
+  }, [mapSelectedLocation]);
 
   const getCurrentLocation = () => {
     setLocationLoading(true);
     setLocationError(null);
-
     if (!navigator.geolocation) {
       setLocationError('GPS ไม่รองรับในเบราว์เซอร์นี้');
       setLocationLoading(false);
       return;
     }
-
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const { latitude, longitude, accuracy } = position.coords;
@@ -52,7 +58,6 @@ export function RiceBurnForm({ onSave, onSaveDraft, polygons = [], onNavigateToM
         setLocationLoading(false);
       },
       (error) => {
-        console.error('GPS Error:', error);
         let errorMessage = 'ไม่สามารถรับตำแหน่งได้';
         switch (error.code) {
           case error.PERMISSION_DENIED:
@@ -71,7 +76,7 @@ export function RiceBurnForm({ onSave, onSaveDraft, polygons = [], onNavigateToM
       {
         enableHighAccuracy: true,
         timeout: 10000,
-        maximumAge: 300000 // 5 minutes
+        maximumAge: 300000
       }
     );
   };
@@ -106,6 +111,7 @@ export function RiceBurnForm({ onSave, onSaveDraft, polygons = [], onNavigateToM
       riceVariety: riceVariety === 'other' ? otherVariety : riceVariety,
       remarks,
       photos,
+      polygons,
       location: gpsEnabled && currentLocation ? {
         lat: currentLocation.lat,
         lng: currentLocation.lng,

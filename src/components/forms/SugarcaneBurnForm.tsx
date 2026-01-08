@@ -9,9 +9,10 @@ interface SugarcaneBurnFormProps {
   onSaveDraft: (data: any) => void;
   polygons?: any[];
   onNavigateToMap?: () => void;
+  mapSelectedLocation?: { lat: number; lng: number } | null;
 }
 
-export function SugarcaneBurnForm({ onSave, onSaveDraft, polygons = [], onNavigateToMap }: SugarcaneBurnFormProps) {
+export function SugarcaneBurnForm({ onSave, onSaveDraft, polygons = [], onNavigateToMap, mapSelectedLocation }: SugarcaneBurnFormProps) {
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [time, setTime] = useState(new Date().toTimeString().slice(0, 5));
   const [gpsEnabled, setGpsEnabled] = useState(true);
@@ -36,16 +37,20 @@ export function SugarcaneBurnForm({ onSave, onSaveDraft, polygons = [], onNaviga
     }
   }, [gpsEnabled]);
 
+  useEffect(() => {
+    if (mapSelectedLocation) {
+      setCurrentLocation({ lat: mapSelectedLocation.lat, lng: mapSelectedLocation.lng, accuracy: currentLocation?.accuracy });
+    }
+  }, [mapSelectedLocation]);
+
   const getCurrentLocation = () => {
     setLocationLoading(true);
     setLocationError(null);
-
     if (!navigator.geolocation) {
       setLocationError('GPS ไม่รองรับในเบราว์เซอร์นี้');
       setLocationLoading(false);
       return;
     }
-
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const { latitude, longitude, accuracy } = position.coords;
@@ -57,7 +62,6 @@ export function SugarcaneBurnForm({ onSave, onSaveDraft, polygons = [], onNaviga
         setLocationLoading(false);
       },
       (error) => {
-        console.error('GPS Error:', error);
         let errorMessage = 'ไม่สามารถรับตำแหน่งได้';
         switch (error.code) {
           case error.PERMISSION_DENIED:
@@ -76,7 +80,7 @@ export function SugarcaneBurnForm({ onSave, onSaveDraft, polygons = [], onNaviga
       {
         enableHighAccuracy: true,
         timeout: 10000,
-        maximumAge: 300000 // 5 minutes
+        maximumAge: 300000
       }
     );
   };
@@ -114,6 +118,7 @@ export function SugarcaneBurnForm({ onSave, onSaveDraft, polygons = [], onNaviga
       },
       remarks,
       photos,
+      polygons,
       location: gpsEnabled && currentLocation ? {
         lat: currentLocation.lat,
         lng: currentLocation.lng,

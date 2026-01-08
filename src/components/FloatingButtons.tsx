@@ -19,6 +19,7 @@ export function FloatingButtons({
   onEdit,
   theme = 'rice',
   isDrawing = false,
+  isPinDropping = false,
 }: FloatingButtonsProps) {
   const [tooltip, setTooltip] = useState<string | null>(null);
   
@@ -52,14 +53,14 @@ export function FloatingButtons({
               onClick={onDropPin}
               onMouseEnter={() => setTooltip('pin')}
               onMouseLeave={() => setTooltip(null)}
-              className="w-14 h-14 bg-white rounded-2xl shadow-xl flex items-center justify-center hover:shadow-2xl active:scale-95 transition-all border border-gray-100"
+              className={`w-14 h-14 rounded-2xl shadow-xl flex items-center justify-center active:scale-95 transition-all border ${isPinDropping ? 'bg-purple-600 text-white border-purple-500 ring-2 ring-purple-300' : 'bg-white text-purple-600 border-gray-100 hover:shadow-2xl'}`}
               aria-label="บันทึกจุด"
             >
-              <MapPin className="w-6 h-6 text-purple-600" />
+              <MapPin className={`w-6 h-6 ${isPinDropping ? 'text-white' : 'text-purple-600'}`} />
             </button>
             {tooltip === 'pin' && (
               <div className="absolute right-16 top-1/2 -translate-y-1/2 bg-gray-900 text-white px-3 py-2 rounded-lg text-sm whitespace-nowrap">
-                คลิกบนแผนที่เพื่อปักหมุด
+                {isPinDropping ? 'คลิกบนแผนที่เพื่อปักหมุด' : 'เปิดโหมดปักหมุด'}
               </div>
             )}
           </div>
