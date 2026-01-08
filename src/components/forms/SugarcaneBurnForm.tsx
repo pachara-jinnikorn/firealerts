@@ -17,7 +17,7 @@ export function SugarcaneBurnForm({ onSave, onSaveDraft, polygons = [], onNaviga
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [time, setTime] = useState(new Date().toTimeString().slice(0, 5));
   const [gpsEnabled, setGpsEnabled] = useState(true);
-  const [burnType, setBurnType] = useState<'before' | 'after'>('before');
+  const [burnType, setBurnType] = useState<'before' | 'after' | 'unspecified'>('before');
   const [activities, setActivities] = useState({
     plowing: false,
     collecting: false,
@@ -91,13 +91,27 @@ export function SugarcaneBurnForm({ onSave, onSaveDraft, polygons = [], onNaviga
     const files = e.target.files;
     if (files && files.length > 0) {
       const file = files[0];
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (reader.result) {
-          setPhotos(prev => [...prev, reader.result as string]);
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        const maxDim = 1280;
+        const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          URL.revokeObjectURL(url);
+          return;
         }
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+        setPhotos(prev => [...prev, dataUrl]);
+        URL.revokeObjectURL(url);
       };
-      reader.readAsDataURL(file);
+      img.src = url;
     }
   };
 
@@ -263,9 +277,10 @@ export function SugarcaneBurnForm({ onSave, onSaveDraft, polygons = [], onNaviga
           options={[
             { value: 'before', label: `🔥 ${t('burnBefore')}` },
             { value: 'after', label: `✂️ ${t('burnAfter')}` },
+            { value: 'unspecified', label: `❓ ${t('unspecifiedField')}` },
           ]}
           value={burnType}
-          onChange={(value) => setBurnType(value as 'before' | 'after')}
+          onChange={(value) => setBurnType(value as 'before' | 'after' | 'unspecified')}
         />
       </div>
 

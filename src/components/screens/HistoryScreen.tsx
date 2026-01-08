@@ -129,7 +129,7 @@ export function HistoryScreen() {
           [t('excelAccuracy')]: record.location.accuracy || '-',
           [t('excelRiceFieldType')]: record.riceFieldType === 'dry' ? t('dryField') : record.riceFieldType === 'wet' ? t('rainyField') : record.riceFieldType === 'unspecified' ? t('unspecifiedField') : '-',
           [t('excelRiceVariety')]: record.riceVariety || '-',
-          [t('excelBurnType')]: record.burnType === 'before' ? t('burnBefore') : record.burnType === 'after' ? t('burnAfter') : '-',
+          [t('excelBurnType')]: record.burnType === 'before' ? t('burnBefore') : record.burnType === 'after' ? t('burnAfter') : record.burnType === 'unspecified' ? t('unspecifiedField') : '-',
           [t('excelPlowing')]: record.activities?.plowing ? t('yes') : t('no'),
           [t('excelCollecting')]: record.activities?.collecting ? t('yes') : t('no'),
           [t('excelOtherActivities')]: record.activities?.otherText || '-',
@@ -211,7 +211,7 @@ export function HistoryScreen() {
             <div><strong>${t('noBurnArea')}:</strong> ${noBurnArea.toFixed(2)} ${t('rai')}</div>
             ${record.riceFieldType ? `<div><strong>${t('riceFieldType')}:</strong> ${riceFieldText}</div>` : ''}
             ${record.riceVariety ? `<div><strong>${t('riceVariety')}:</strong> ${record.riceVariety}</div>` : ''}
-            ${record.burnType ? `<div><strong>${t('burnType')}:</strong> ${record.burnType === 'before' ? t('burnBefore') : t('burnAfter')}</div>` : ''}
+            ${record.burnType ? `<div><strong>${t('burnType')}:</strong> ${record.burnType === 'before' ? t('burnBefore') : record.burnType === 'after' ? t('burnAfter') : t('unspecifiedField')}</div>` : ''}
             ${record.remarks ? `<div style="grid-column:1 / -1;"><strong>${t('remarks')}:</strong> ${record.remarks}</div>` : ''}
           </div>
           ${record.photos && record.photos.length > 0 ? `

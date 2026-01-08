@@ -21,7 +21,7 @@ export interface SavedRecord {
   riceFieldType?: 'dry' | 'wet' | 'unspecified';
   riceVariety?: string;
   // Sugarcane specific
-  burnType?: 'before' | 'after';
+  burnType?: 'before' | 'after' | 'unspecified';
   activities?: {
     plowing: boolean;
     collecting: boolean;
