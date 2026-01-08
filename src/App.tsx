@@ -14,10 +14,7 @@ function AppContent() {
   const { user, loading } = useAuth();
   const [currentScreen, setCurrentScreen] = useState<Screen>('rice');
 
-  // Initialize sample data on first load
-  useState(() => {
-    storage.initializeSampleData();
-  });
+  // Removed sample data initialization to prevent auto-creating records
 
   if (loading) {
     return (
