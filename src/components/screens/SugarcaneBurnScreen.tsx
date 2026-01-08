@@ -214,6 +214,7 @@ export function SugarcaneBurnScreen() {
           onPolygonCreated={handlePolygonCreated}
           onPolygonDeleted={handlePolygonDeleted}
           onMapReady={setMapInstance}
+          onControlsReady={(c: any) => setDrawingControls(c)}
           onLocationSelected={(loc) => {
             setSelectedLocation(loc);
             setToastMessage(`✅ ${t('location')} ${loc.lat.toFixed(6)}, ${loc.lng.toFixed(6)}`);

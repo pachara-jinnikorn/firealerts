@@ -13,11 +13,11 @@ interface BottomSheetProps {
 export function BottomSheet({ title, status, children, theme = 'rice', onExpandChange, isExpanded: controlledExpanded }: BottomSheetProps) {
   const [isExpanded, setIsExpanded] = useState<boolean>(controlledExpanded ?? true);
   
-  // Sync internal state when controlled prop changes
-  if (typeof controlledExpanded !== 'undefined' && controlledExpanded !== isExpanded) {
-    // Avoid extra render hooks; simple sync since this is a small component
-    setIsExpanded(controlledExpanded);
-  }
+  useEffect(() => {
+    if (typeof controlledExpanded !== 'undefined') {
+      setIsExpanded(controlledExpanded);
+    }
+  }, [controlledExpanded]);
   
   const handleToggle = () => {
     const newExpanded = !isExpanded;

@@ -16,6 +16,7 @@ interface MapWithDrawingProps {
   onPolygonDeleted?: (id: string) => void;
   onMapReady?: (map: any) => void;
   onLocationSelected?: (location: { lat: number; lng: number }) => void;
+  onControlsReady?: (controls: any) => void;
 }
 
 export function MapWithDrawing({ 
@@ -25,7 +26,8 @@ export function MapWithDrawing({
   onPolygonCreated,
   onPolygonDeleted,
   onMapReady,
-  onLocationSelected
+  onLocationSelected,
+  onControlsReady
 }: MapWithDrawingProps) {
   const mapRef = useRef<any>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -435,6 +437,12 @@ export function MapWithDrawing({
     togglePinDrop,
     isPinDropping,
   };
+
+  useEffect(() => {
+    if (onControlsReady) {
+      onControlsReady(controls);
+    }
+  }, []);
 
   return (
     <>

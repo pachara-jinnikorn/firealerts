@@ -34,13 +34,31 @@ export interface SavedRecord {
   status: 'draft' | 'saved';
 }
 
-const STORAGE_KEY = 'burn_area_records';
+const STORAGE_KEY_BASE = 'burn_area_records';
+const USER_ID_KEY = 'current_user_id';
+const getStorageKey = () => {
+  try {
+    const userId = localStorage.getItem(USER_ID_KEY);
+    return `${STORAGE_KEY_BASE}:${userId || 'guest'}`;
+  } catch {
+    return `${STORAGE_KEY_BASE}:guest`;
+  }
+};
 
 export const storage = {
   // Get all records
   getRecords: (): SavedRecord[] => {
     try {
-      const data = localStorage.getItem(STORAGE_KEY);
+      const key = getStorageKey();
+      let data = localStorage.getItem(key);
+      if (!data) {
+        const legacy = localStorage.getItem(STORAGE_KEY_BASE);
+        if (legacy) {
+          localStorage.setItem(key, legacy);
+          localStorage.removeItem(STORAGE_KEY_BASE);
+          data = legacy;
+        }
+      }
       return data ? JSON.parse(data) : [];
     } catch (error) {
       console.error('Error reading from storage:', error);
@@ -66,7 +84,7 @@ export const storage = {
         records.unshift(record); // Add to beginning
       }
       
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+      localStorage.setItem(getStorageKey(), JSON.stringify(records));
     } catch (error) {
       console.error('Error saving to storage:', error);
     }
@@ -77,7 +95,7 @@ export const storage = {
     try {
       const records = storage.getRecords();
       const filtered = records.filter(r => r.id !== id);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
+      localStorage.setItem(getStorageKey(), JSON.stringify(filtered));
     } catch (error) {
       console.error('Error deleting from storage:', error);
     }
@@ -90,7 +108,7 @@ export const storage = {
       const record = records.find(r => r.id === id);
       if (record) {
         record.status = status;
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+        localStorage.setItem(getStorageKey(), JSON.stringify(records));
       }
     } catch (error) {
       console.error('Error updating record status:', error);
@@ -253,6 +271,6 @@ export const storage = {
       },
     ];
 
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(sampleRecords));
+    localStorage.setItem(getStorageKey(), JSON.stringify(sampleRecords));
   }
 };

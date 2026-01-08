@@ -27,6 +27,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(session?.user ?? null);
       setLoading(false);
       console.log('Session loaded:', session?.user?.email || 'Not logged in');
+      try {
+        localStorage.setItem('current_user_id', session?.user?.id || '');
+      } catch {}
     });
 
     // Listen for auth changes
@@ -35,6 +38,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.log('Auth state changed:', event, session?.user?.email);
         setUser(session?.user ?? null);
         setLoading(false);
+        try {
+          localStorage.setItem('current_user_id', session?.user?.id || '');
+        } catch {}
       }
     );
 
@@ -100,6 +106,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await supabase.auth.signOut();
       setUser(null);
       console.log('Signed out successfully');
+      try {
+        localStorage.setItem('current_user_id', '');
+      } catch {}
     } catch (error) {
       console.error('Sign out error:', error);
     }

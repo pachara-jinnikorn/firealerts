@@ -222,6 +222,7 @@ export function RiceBurnScreen() {
           onPolygonCreated={handlePolygonCreated}
           onPolygonDeleted={handlePolygonDeleted}
           onMapReady={setMapInstance}
+          onControlsReady={(c: any) => setDrawingControls(c)}
           onLocationSelected={(loc) => {
             setSelectedLocation(loc);
             setToastMessage(`✅ ${t('location')} ${loc.lat.toFixed(6)}, ${loc.lng.toFixed(6)}`);
@@ -230,12 +231,6 @@ export function RiceBurnScreen() {
           }}
         >
           {(controls: any) => {
-            // Store the controls for use in button handlers
-            if (controls && !drawingControls) {
-              console.log('📦 Storing drawing controls:', controls);
-              setDrawingControls(controls);
-            }
-            
             return (
               <FloatingButtons
                 theme="rice"
