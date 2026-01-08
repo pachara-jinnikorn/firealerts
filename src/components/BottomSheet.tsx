@@ -1,4 +1,4 @@
-import { ReactNode, useState } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import { ChevronUp, ChevronDown } from 'lucide-react';
 
 interface BottomSheetProps {
