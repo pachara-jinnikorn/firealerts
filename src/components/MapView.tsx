@@ -107,7 +107,9 @@ export function MapView({ children, theme = 'rice' }: MapViewProps) {
       polygonRef.current = polygon;
 
       // Calculate area (rough estimation)
-      const latlngs: Array<{ lat: number; lng: number }> = (polygon.getLatLngs()[0] || []).map((p: any) => ({ lat: p.lat, lng: p.lng }));
+      const rawLatLngs: any = polygon.getLatLngs();
+      const latlngsArray: any[] = Array.isArray(rawLatLngs?.[0]) ? rawLatLngs[0] : rawLatLngs || [];
+      const latlngs: Array<{ lat: number; lng: number }> = latlngsArray.map((p: any) => ({ lat: p.lat, lng: p.lng }));
       const area = calculateAreaFromLatLngs(latlngs);
       const areaInRai = (area / 1600).toFixed(2); // Convert to Rai (1 Rai ≈ 1600 m²)
 
