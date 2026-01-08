@@ -164,19 +164,12 @@ export function HistoryScreen() {
 
     try {
       const { jsPDF } = await import('jspdf');
+      const html2canvas = (await import('html2canvas')).default;
       const recordsToExport = records.filter(r => selectedForExport.has(r.id));
-      const doc = new jsPDF();
-      doc.setFont('helvetica');
-      
-      let yPosition = 20;
-      const pageHeight = doc.internal.pageSize.height;
-      const pageWidth = doc.internal.pageSize.width;
-      const margin = 15;
-      const contentWidth = pageWidth - (2 * margin);
-
-      doc.setFontSize(18);
-      doc.text(language === 'th' ? 'รายงานข้อมูลพื้นที่เผา' : 'Burn Area Report', pageWidth / 2, yPosition, { align: 'center' });
-      yPosition += 15;
+      const doc = new jsPDF('p', 'mm', 'a4');
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const margin = 10;
 
       for (let i = 0; i < recordsToExport.length; i++) {
         const record = recordsToExport[i];
@@ -184,74 +177,66 @@ export function HistoryScreen() {
         const burnArea = record.polygons.filter(p => p.type === 'burn').reduce((sum, p) => sum + p.area, 0) / 1600;
         const noBurnArea = record.polygons.filter(p => p.type === 'non-burn').reduce((sum, p) => sum + p.area, 0) / 1600;
 
-        if (yPosition > pageHeight - 100) { doc.addPage(); yPosition = 20; }
+        const container = document.createElement('div');
+        container.style.position = 'fixed';
+        container.style.left = '-10000px';
+        container.style.top = '0';
+        container.style.width = '800px';
+        container.style.background = '#ffffff';
+        container.style.color = '#111827';
+        container.style.fontFamily = 'system-ui, -apple-system, Segoe UI, Roboto, Noto Sans Thai, TH Sarabun New, Arial, sans-serif';
+        container.style.padding = '24px';
+        container.style.border = '1px solid #e5e7eb';
+        container.style.borderRadius = '12px';
+        container.style.boxShadow = '0 2px 10px rgba(0,0,0,0.08)';
 
-        doc.setFontSize(14);
-        doc.setFont('helvetica', 'bold');
-        doc.text(`${t('records')} ${i + 1}: ${record.type === 'rice' ? t('rice') : t('sugarcane')}`, margin, yPosition);
-        yPosition += 8;
+        const headerTitle = language === 'th' ? 'รายงานข้อมูลพื้นที่เผา' : 'Burn Area Report';
+        const typeText = record.type === 'rice' ? (language === 'th' ? 'ข้าว' : 'Rice') : (language === 'th' ? 'อ้อย' : 'Sugarcane');
+        const riceFieldText = record.riceFieldType
+          ? (record.riceFieldType === 'dry' ? t('dryField') : record.riceFieldType === 'wet' ? t('rainyField') : t('unspecifiedField'))
+          : '-';
 
-        doc.setFontSize(10);
-        doc.setFont('helvetica', 'normal');
-        
-        const details = [
-          `${t('date')}: ${record.date} ${record.time}`,
-          `${t('status')}: ${record.status === 'draft' ? t('draftStatus') : t('savedStatus')}`,
-          `${t('totalArea')}: ${totalArea.toFixed(2)} ${t('rai')}`,
-          `${t('burnArea')}: ${burnArea.toFixed(2)} ${t('rai')}`,
-          `${t('noBurnArea')}: ${noBurnArea.toFixed(2)} ${t('rai')}`,
-          `${t('location')}: ${record.location.lat.toFixed(6)}, ${record.location.lng.toFixed(6)}`,
-        ];
+        container.innerHTML = `
+          <div style="text-align:center; font-weight:700; font-size:20px; margin-bottom:16px;">${headerTitle}</div>
+          <div style="display:flex; gap:12px; margin-bottom:12px; font-size:14px;">
+            <div><strong>${t('records')}:</strong> ${i + 1}</div>
+            <div><strong>${t('excelType')}:</strong> ${typeText}</div>
+            <div><strong>${t('status')}:</strong> ${record.status === 'draft' ? t('draftStatus') : t('savedStatus')}</div>
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:13px; margin-bottom:12px;">
+            <div><strong>${t('date')}:</strong> ${record.date} ${record.time}</div>
+            <div><strong>${t('location')}:</strong> ${record.location.lat.toFixed(6)}, ${record.location.lng.toFixed(6)}</div>
+            <div><strong>${t('totalArea')}:</strong> ${totalArea.toFixed(2)} ${t('rai')}</div>
+            <div><strong>${t('burnArea')}:</strong> ${burnArea.toFixed(2)} ${t('rai')}</div>
+            <div><strong>${t('noBurnArea')}:</strong> ${noBurnArea.toFixed(2)} ${t('rai')}</div>
+            ${record.riceFieldType ? `<div><strong>${t('riceFieldType')}:</strong> ${riceFieldText}</div>` : ''}
+            ${record.riceVariety ? `<div><strong>${t('riceVariety')}:</strong> ${record.riceVariety}</div>` : ''}
+            ${record.burnType ? `<div><strong>${t('burnType')}:</strong> ${record.burnType === 'before' ? t('burnBefore') : t('burnAfter')}</div>` : ''}
+            ${record.remarks ? `<div style="grid-column:1 / -1;"><strong>${t('remarks')}:</strong> ${record.remarks}</div>` : ''}
+          </div>
+          ${record.photos && record.photos.length > 0 ? `
+            <div style="margin-top:8px;">
+              <div style="font-weight:700; font-size:14px; margin-bottom:6px;">${t('photos')}:</div>
+              <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:8px;">
+                ${record.photos.map((src, idx) => `
+                  <div style="border:1px solid #e5e7eb; border-radius:8px; overflow:hidden;">
+                    <img src="${src}" style="width:100%; height:120px; object-fit:cover;" crossorigin="anonymous" />
+                    <div style="font-size:11px; color:#6b7280; padding:4px 6px;">${t('photos')} ${idx + 1}</div>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          ` : ''}
+        `;
 
-        if (record.riceFieldType) details.push(`${t('riceFieldType')}: ${
-          record.riceFieldType === 'dry' ? t('dryField') :
-          record.riceFieldType === 'wet' ? t('rainyField') :
-          t('unspecifiedField')
-        }`);
-        if (record.riceVariety) details.push(`${t('riceVariety')}: ${record.riceVariety}`);
-        if (record.burnType) details.push(`${t('burnType')}: ${record.burnType === 'before' ? t('burnBefore') : t('burnAfter')}`);
-        if (record.remarks) details.push(`${t('remarks')}: ${record.remarks}`);
-
-        details.forEach(detail => {
-          const lines = doc.splitTextToSize(detail, contentWidth);
-          lines.forEach((line: string) => {
-            if (yPosition > pageHeight - 20) { doc.addPage(); yPosition = 20; }
-            doc.text(line, margin, yPosition);
-            yPosition += 5;
-          });
-        });
-
-        yPosition += 5;
-
-        if (record.photos && record.photos.length > 0) {
-          doc.setFont('helvetica', 'bold');
-          doc.text(`${t('photos')}:`, margin, yPosition);
-          yPosition += 7;
-          doc.setFont('helvetica', 'normal');
-
-          for (let j = 0; j < record.photos.length; j++) {
-            const photo = record.photos[j];
-            if (yPosition > pageHeight - 80) { doc.addPage(); yPosition = 20; }
-            try {
-              const imgWidth = 80;
-              const imgHeight = 60;
-              doc.addImage(photo, 'JPEG', margin, yPosition, imgWidth, imgHeight);
-              doc.setFontSize(8);
-              doc.text(`${t('photos')} ${j + 1}`, margin, yPosition + imgHeight + 4);
-              yPosition += imgHeight + 10;
-            } catch (err) {
-              doc.text(`[${t('photos')} ${j + 1} - Error loading]`, margin, yPosition);
-              yPosition += 7;
-            }
-          }
-        }
-
-        if (i < recordsToExport.length - 1) {
-          yPosition += 5;
-          doc.setDrawColor(200, 200, 200);
-          doc.line(margin, yPosition, pageWidth - margin, yPosition);
-          yPosition += 10;
-        }
+        document.body.appendChild(container);
+        const canvas = await html2canvas(container, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+        const imgData = canvas.toDataURL('image/png');
+        const imgWidth = pageWidth - margin * 2;
+        const imgHeight = canvas.height * (imgWidth / canvas.width);
+        if (i > 0) doc.addPage();
+        doc.addImage(imgData, 'PNG', margin, margin, imgWidth, Math.min(imgHeight, pageHeight - margin * 2));
+        document.body.removeChild(container);
       }
 
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
