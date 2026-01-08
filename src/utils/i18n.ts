@@ -66,6 +66,13 @@ export const translations = {
     addPhoto: 'เพิ่มรูปภาพ',
     remarks: 'หมายเหตุ',
     remarksPlaceholder: 'ระบุหมายเหตุเพิ่มเติม...',
+    loading: 'กำลังโหลด...',
+    saving: 'กำลังบันทึก...',
+    updateGps: 'อัปเดต GPS',
+    selectFromMap: 'เลือกจากแผนที่',
+    noLocationData: 'ไม่มีข้อมูลตำแหน่ง',
+    latitude: 'ละติจูด',
+    longitude: 'ลองจิจูด',
     
     // Buttons
     saveDraft: 'บันทึกฉบับร่าง',
@@ -207,6 +214,13 @@ export const translations = {
     addPhoto: 'Add Photo',
     remarks: 'Remarks',
     remarksPlaceholder: 'Enter additional remarks...',
+    loading: 'Loading...',
+    saving: 'Saving...',
+    updateGps: 'Update GPS',
+    selectFromMap: 'Select from map',
+    noLocationData: 'No location data',
+    latitude: 'Latitude',
+    longitude: 'Longitude',
     
     // Buttons
     saveDraft: 'Save as Draft',
