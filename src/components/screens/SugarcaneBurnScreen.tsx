@@ -258,7 +258,7 @@ export function SugarcaneBurnScreen() {
         </MapWithDrawing>
 
         {/* Bottom Sheet with Form */}
-        <BottomSheet title={`${t('sugarcaneTitle')} (${t('sugarcaneSubtitle')})`} status="draft" theme="sugarcane" onExpandChange={setIsSheetExpanded}>
+        <BottomSheet title={`${t('sugarcaneTitle')} (${t('sugarcaneSubtitle')})`} status="draft" theme="sugarcane" isExpanded={isSheetExpanded} onExpandChange={setIsSheetExpanded}>
           <SugarcaneBurnForm onSave={handleSave} onSaveDraft={handleSaveDraft} polygons={polygons} onNavigateToMap={handleNavigateToMap} mapSelectedLocation={selectedLocation} />
         </BottomSheet>
       </div>

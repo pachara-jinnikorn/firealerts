@@ -256,7 +256,7 @@ export function RiceBurnScreen() {
         </MapWithDrawing>
 
         {/* Bottom Sheet with Form */}
-        <BottomSheet title={`${t('riceTitle')} (${t('riceSubtitle')})`} status="draft" theme="rice" onExpandChange={setIsSheetExpanded}>
+        <BottomSheet title={`${t('riceTitle')} (${t('riceSubtitle')})`} status="draft" theme="rice" isExpanded={isSheetExpanded} onExpandChange={setIsSheetExpanded}>
           <RiceBurnForm onSave={handleSave} onSaveDraft={handleSaveDraft} polygons={polygons} onNavigateToMap={handleNavigateToMap} mapSelectedLocation={selectedLocation} />
         </BottomSheet>
       </div>
