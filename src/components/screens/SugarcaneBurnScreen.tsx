@@ -223,12 +223,6 @@ export function SugarcaneBurnScreen() {
           }}
         >
           {(controls: any) => {
-            // Store the controls for use in button handlers
-            if (controls && !drawingControls) {
-              console.log('📦 Storing drawing controls:', controls);
-              setDrawingControls(controls);
-            }
-            
             return (
               <>
                 <LayerSwitch 
