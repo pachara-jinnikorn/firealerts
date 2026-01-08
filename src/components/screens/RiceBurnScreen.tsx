@@ -10,7 +10,7 @@ import { storage, SavedRecord } from '../../utils/storage';
 import { useLanguage } from '../../contexts/LanguageContext';
 
 export function RiceBurnScreen() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [activeLayer, setActiveLayer] = useState<'burn' | 'non-burn'>('burn');
@@ -31,7 +31,7 @@ export function RiceBurnScreen() {
     } else if (drawingControls?.startPinDrop) {
       drawingControls.startPinDrop();
     }
-    setToastMessage('📍 ' + (t('language') === 'th' ? 'คลิกบนแผนที่เพื่อเลือกตำแหน่ง' : 'Click on map to select location'));
+    setToastMessage('📍 ' + (language === 'th' ? 'คลิกบนแผนที่เพื่อเลือกตำแหน่ง' : 'Click on map to select location'));
     setShowToast(true);
     setTimeout(() => setShowToast(false), 3000);
   };
@@ -143,8 +143,8 @@ export function RiceBurnScreen() {
     drawingControls?.togglePinDrop?.();
     setToastMessage(
       wasDropping
-        ? '🚫 ' + (t('language') === 'th' ? 'ปิดโหมดปักหมุด' : 'Pin drop mode disabled')
-        : '📍 ' + (t('language') === 'th' ? 'คลิกบนแผนที่เพื่อเลือกตำแหน่ง' : 'Click on map to select location')
+        ? '🚫 ' + (language === 'th' ? 'ปิดโหมดปักหมุด' : 'Pin drop mode disabled')
+        : '📍 ' + (language === 'th' ? 'คลิกบนแผนที่เพื่อเลือกตำแหน่ง' : 'Click on map to select location')
     );
     setShowToast(true);
     setTimeout(() => setShowToast(false), 3000);
@@ -175,7 +175,7 @@ export function RiceBurnScreen() {
   const handlePolygonCreated = (polygon: any) => {
     console.log('✅ Polygon created in screen:', polygon);
     setPolygons(prev => [...prev, polygon]);
-    setToastMessage(`✓ ${t('language') === 'th' ? 'สร้าง Polygon สำเร็จ' : 'Polygon created'} - ${(polygon.area / 1600).toFixed(2)} ${t('rai')}`);
+    setToastMessage(`✓ ${language === 'th' ? 'สร้าง Polygon สำเร็จ' : 'Polygon created'} - ${(polygon.area / 1600).toFixed(2)} ${t('rai')}`);
     setShowToast(true);
     setTimeout(() => setShowToast(false), 3000);
   };
@@ -183,7 +183,7 @@ export function RiceBurnScreen() {
   const handlePolygonDeleted = (id: string) => {
     console.log('🗑️ Polygon deleted in screen:', id);
     setPolygons(prev => prev.filter(p => p.id !== id));
-    setToastMessage('🗑️ ' + (t('language') === 'th' ? 'ลบ Polygon แล้ว' : 'Polygon deleted'));
+    setToastMessage('🗑️ ' + (language === 'th' ? 'ลบ Polygon แล้ว' : 'Polygon deleted'));
     setShowToast(true);
     setTimeout(() => setShowToast(false), 2000);
   };
@@ -246,7 +246,7 @@ export function RiceBurnScreen() {
                 onDrawPolygon={handleDrawPolygon}
                 onStopDrawing={handleStopDrawing}
                 onEdit={() => {
-                  setToastMessage('💡 ' + (t('language') === 'th' ? 'คลิกที่ Polygon บนแผนที่ แล้วกดปุ่ม "ลบ" ใน popup' : 'Click on polygon, then press "Delete" in popup'));
+                  setToastMessage('💡 ' + (language === 'th' ? 'คลิกที่ Polygon บนแผนที่ แล้วกดปุ่ม "ลบ" ใน popup' : 'Click on polygon, then press "Delete" in popup'));
                   setShowToast(true);
                   setTimeout(() => setShowToast(false), 3000);
                 }}

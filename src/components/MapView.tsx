@@ -14,6 +14,22 @@ export function MapView({ children, theme = 'rice' }: MapViewProps) {
   const markersRef = useRef<any[]>([]);
   const polygonRef = useRef<any>(null);
 
+  const calculateAreaFromLatLngs = (latlngs: Array<{ lat: number; lng: number }>) => {
+    if (!latlngs || latlngs.length < 3) return 0;
+    const earthRadius = 6371000;
+    let area = 0;
+    for (let i = 0; i < latlngs.length; i++) {
+      const j = (i + 1) % latlngs.length;
+      const lat1 = latlngs[i].lat * Math.PI / 180;
+      const lat2 = latlngs[j].lat * Math.PI / 180;
+      const lng1 = latlngs[i].lng * Math.PI / 180;
+      const lng2 = latlngs[j].lng * Math.PI / 180;
+      area += (lng2 - lng1) * (2 + Math.sin(lat1) + Math.sin(lat2));
+    }
+    area = Math.abs(area * earthRadius * earthRadius / 2);
+    return area;
+  };
+
   useEffect(() => {
     // Import Leaflet dynamically
     const loadMap = async () => {
@@ -91,7 +107,8 @@ export function MapView({ children, theme = 'rice' }: MapViewProps) {
       polygonRef.current = polygon;
 
       // Calculate area (rough estimation)
-      const area = L.GeometryUtil ? L.GeometryUtil.geodesicArea(polygon.getLatLngs()[0]) : 2500;
+      const latlngs: Array<{ lat: number; lng: number }> = (polygon.getLatLngs()[0] || []).map((p: any) => ({ lat: p.lat, lng: p.lng }));
+      const area = calculateAreaFromLatLngs(latlngs);
       const areaInRai = (area / 1600).toFixed(2); // Convert to Rai (1 Rai ≈ 1600 m²)
 
       polygon.bindPopup(`

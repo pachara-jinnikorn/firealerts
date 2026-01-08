@@ -9,6 +9,7 @@ interface FloatingButtonsProps {
   onEdit?: () => void;
   theme?: 'rice' | 'sugarcane';
   isDrawing?: boolean;
+  isPinDropping?: boolean;
 }
 
 export function FloatingButtons({
