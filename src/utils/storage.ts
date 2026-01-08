@@ -18,7 +18,7 @@ export interface SavedRecord {
     color: string;
   }>;
   // Rice specific
-  riceFieldType?: 'dry' | 'wet';
+  riceFieldType?: 'dry' | 'wet' | 'unspecified';
   riceVariety?: string;
   // Sugarcane specific
   burnType?: 'before' | 'after';

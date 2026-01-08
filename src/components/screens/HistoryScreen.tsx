@@ -127,7 +127,7 @@ export function HistoryScreen() {
           [t('excelLatitude')]: record.location.lat.toFixed(6),
           [t('excelLongitude')]: record.location.lng.toFixed(6),
           [t('excelAccuracy')]: record.location.accuracy || '-',
-          [t('excelRiceFieldType')]: record.riceFieldType === 'dry' ? t('dryField') : record.riceFieldType === 'wet' ? t('rainyField') : '-',
+          [t('excelRiceFieldType')]: record.riceFieldType === 'dry' ? t('dryField') : record.riceFieldType === 'wet' ? t('rainyField') : record.riceFieldType === 'unspecified' ? t('unspecifiedField') : '-',
           [t('excelRiceVariety')]: record.riceVariety || '-',
           [t('excelBurnType')]: record.burnType === 'before' ? t('burnBefore') : record.burnType === 'after' ? t('burnAfter') : '-',
           [t('excelPlowing')]: record.activities?.plowing ? t('yes') : t('no'),
@@ -203,7 +203,11 @@ export function HistoryScreen() {
           `${t('location')}: ${record.location.lat.toFixed(6)}, ${record.location.lng.toFixed(6)}`,
         ];
 
-        if (record.riceFieldType) details.push(`${t('riceFieldType')}: ${record.riceFieldType === 'dry' ? t('dryField') : t('rainyField')}`);
+        if (record.riceFieldType) details.push(`${t('riceFieldType')}: ${
+          record.riceFieldType === 'dry' ? t('dryField') :
+          record.riceFieldType === 'wet' ? t('rainyField') :
+          t('unspecifiedField')
+        }`);
         if (record.riceVariety) details.push(`${t('riceVariety')}: ${record.riceVariety}`);
         if (record.burnType) details.push(`${t('burnType')}: ${record.burnType === 'before' ? t('burnBefore') : t('burnAfter')}`);
         if (record.remarks) details.push(`${t('remarks')}: ${record.remarks}`);

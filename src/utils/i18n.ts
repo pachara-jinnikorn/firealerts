@@ -30,6 +30,7 @@ export const translations = {
     riceFieldType: 'ชนิดนาข้าว',
     dryField: 'นาปี',
     rainyField: 'นาปรัง',
+    unspecifiedField: 'ไม่ระบุ',
     riceVariety: 'พันธุ์ข้าว',
     riceVarietyPlaceholder: 'ระบุพันธุ์ข้าว',
     
@@ -178,6 +179,7 @@ export const translations = {
     riceFieldType: 'Rice Field Type',
     dryField: 'Dry Season',
     rainyField: 'Rainy Season',
+    unspecifiedField: 'Unspecified',
     riceVariety: 'Rice Variety',
     riceVarietyPlaceholder: 'Enter rice variety',
     

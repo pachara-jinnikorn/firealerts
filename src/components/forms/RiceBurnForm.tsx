@@ -17,7 +17,7 @@ export function RiceBurnForm({ onSave, onSaveDraft, polygons = [], onNavigateToM
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [time, setTime] = useState(new Date().toTimeString().slice(0, 5));
   const [gpsEnabled, setGpsEnabled] = useState(true);
-  const [riceFieldType, setRiceFieldType] = useState<'dry' | 'wet'>('dry');
+  const [riceFieldType, setRiceFieldType] = useState<'dry' | 'wet' | 'unspecified'>('dry');
   const [riceVariety, setRiceVariety] = useState('');
   const [otherVariety, setOtherVariety] = useState('');
   const [remarks, setRemarks] = useState('');
@@ -256,9 +256,10 @@ export function RiceBurnForm({ onSave, onSaveDraft, polygons = [], onNavigateToM
           options={[
             { value: 'dry', label: `☀️ ${t('dryField')}` },
             { value: 'wet', label: `💧 ${t('rainyField')}` },
+            { value: 'unspecified', label: `❓ ${t('unspecifiedField')}` },
           ]}
           value={riceFieldType}
-          onChange={(value) => setRiceFieldType(value as 'dry' | 'wet')}
+          onChange={(value) => setRiceFieldType(value as 'dry' | 'wet' | 'unspecified')}
         />
       </div>
 
