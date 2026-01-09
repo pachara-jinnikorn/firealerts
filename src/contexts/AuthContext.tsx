@@ -77,9 +77,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signIn = async (email: string, password: string) => {
     try {
-      console.log('Signing in attempt:', email);
-      // Force sign out first to ensure no session conflicts
+      console.log('Signing in:', email);
+
+      // CRITICAL: Clear ALL Supabase session data before new login
       await supabase.auth.signOut();
+
+      // Clear all sb-* keys from localStorage
+      Object.keys(localStorage).forEach(key => {
+        if (key.startsWith('sb-')) {
+          localStorage.removeItem(key);
+        }
+      });
       localStorage.removeItem('current_user_id');
 
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -93,16 +101,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       if (data.user) {
-        console.log('Sign in successful for:', data.user.email);
-        console.log('User ID:', data.user.id);
-        setUser(data.user); // Explicitly update state
+        console.log('Sign in successful:', data.user.email);
+        setUser(data.user);
         localStorage.setItem('current_user_id', data.user.id);
 
-        // CRITICAL FIX: Force reload to ensure all app components (especially sync service)
-        // pick up the new session from LocalStorage.
-        setTimeout(() => {
-          window.location.reload();
-        }, 500);
+        // IMMEDIATE reload - no setTimeout to prevent stale session usage
+        window.location.reload();
       }
 
       return { error: null };

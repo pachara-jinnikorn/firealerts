@@ -22,6 +22,13 @@ export function HistoryScreen() {
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
 
+  // Sync current user ID to localStorage for storage.ts
+  useEffect(() => {
+    if (user?.id) {
+      localStorage.setItem('current_user_id', user.id);
+    }
+  }, [user?.id]);
+
   useEffect(() => {
     storage.purgeSampleData(); // Clean up old mock data
     loadRecords();
@@ -141,7 +148,35 @@ export function HistoryScreen() {
         alert(language === 'th' ? 'กรุณาเข้าสู่ระบบ' : 'Please log in');
         return;
       }
+      console.log('📤 HistoryScreen calling syncToCloud with user.id:', user.id);
       const result = await syncToCloud(user.id);
+
+      // Reload from cloud to get the latest data (including newly synced records)
+      if (result.success && user.id) {
+        const remote = await DatabaseService.getUserRecords(user.id);
+        if (remote && remote.length > 0) {
+          // Save to local storage
+          remote.forEach(r => {
+            const typeMapped = r.type === 'ข้าว' || r.type === 'rice' ? 'rice' : 'sugarcane';
+            const created = new Date(r.timestamp);
+            storage.saveRecord({
+              id: r.id,
+              type: typeMapped,
+              date: created.toISOString().slice(0, 10),
+              time: created.toTimeString().slice(0, 5),
+              location: { lat: r.location.lat, lng: r.location.lng, accuracy: 5 },
+              polygons: [],
+              remarks: r.notes || '',
+              photos: r.photos || [],
+              createdAt: created.toISOString(),
+              status: 'saved',
+              synced: true,
+              supabaseId: r.supabaseId,
+            });
+          });
+        }
+      }
+
       alert(`✅ ${t('syncSuccess')} (${result.count} ${t('records')})`);
       loadRecords();
     } catch (error) {

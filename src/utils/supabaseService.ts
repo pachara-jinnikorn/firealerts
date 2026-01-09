@@ -5,12 +5,15 @@ import { SavedRecord, storage } from './storage';
 export { supabase };
 
 export const syncToCloud = async (userId?: string) => {
+  console.log('🔵 syncToCloud called with userId:', userId);
+
   let user = null;
 
   if (userId) {
     user = { id: userId };
-    console.log('Using provided User ID:', userId);
+    console.log('✅ Using provided User ID:', userId);
   } else {
+    console.warn('⚠️ No userId provided, falling back to Supabase auth');
     // Fallback to internal check
     const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
     if (authError || !authUser) {
@@ -20,7 +23,7 @@ export const syncToCloud = async (userId?: string) => {
     user = authUser;
   }
 
-  console.log('Syncing as user:', user.id);
+  console.log('🎯 Final user ID for sync:', user.id);
 
   // Only sync records that are 'saved' (not drafts) and not yet synced
   const recordsToSync = storage.getRecords().filter(r => r.status === 'saved' && !r.synced);
