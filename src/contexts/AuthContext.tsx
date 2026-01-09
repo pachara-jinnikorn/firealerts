@@ -29,7 +29,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log('Session loaded:', session?.user?.email || 'Not logged in');
       try {
         localStorage.setItem('current_user_id', session?.user?.id || '');
-      } catch {}
+      } catch { }
     });
 
     // Listen for auth changes
@@ -40,7 +40,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setLoading(false);
         try {
           localStorage.setItem('current_user_id', session?.user?.id || '');
-        } catch {}
+        } catch { }
       }
     );
 
@@ -54,12 +54,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         email,
         password,
       });
-      
+
       if (error) {
         console.error('Sign up error:', error);
         return { error };
       }
-      
+
       // If email confirmation is disabled, the user will be logged in immediately
       if (data.user && data.session) {
         console.log('Sign up successful - user logged in');
@@ -67,7 +67,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } else {
         console.log('Sign up successful - confirmation email sent');
       }
-      
+
       return { error: null };
     } catch (error) {
       console.error('Sign up exception:', error);
@@ -77,25 +77,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signIn = async (email: string, password: string) => {
     try {
-      console.log('Signing in:', email);
+      console.log('Signing in attempt:', email);
+      // Force sign out first to ensure no session conflicts
+      await supabase.auth.signOut();
+      localStorage.removeItem('current_user_id');
+
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
-      
+
       if (error) {
         console.error('Sign in error:', error);
         return { error };
       }
-      
+
       if (data.user) {
-        console.log('Sign in successful:', data.user.email);
-        setUser(data.user);
-        try {
-          localStorage.setItem('current_user_id', data.user.id || '');
-        } catch {}
+        console.log('Sign in successful for:', data.user.email);
+        console.log('User ID:', data.user.id);
+        setUser(data.user); // Explicitly update state
+        localStorage.setItem('current_user_id', data.user.id);
+
+        // CRITICAL FIX: Force reload to ensure all app components (especially sync service)
+        // pick up the new session from LocalStorage.
+        setTimeout(() => {
+          window.location.reload();
+        }, 500);
       }
-      
+
       return { error: null };
     } catch (error) {
       console.error('Sign in exception:', error);
@@ -110,8 +119,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(null);
       console.log('Signed out successfully');
       try {
-        localStorage.setItem('current_user_id', '');
-      } catch {}
+        localStorage.removeItem('current_user_id');
+        // Clear Supabase session tokens explicitly
+        const keys = Object.keys(localStorage);
+        keys.forEach(key => {
+          if (key.startsWith('sb-')) localStorage.removeItem(key);
+        });
+      } catch { }
+
+      // Force reload to clear in-memory Supabase client state
+      window.location.reload();
     } catch (error) {
       console.error('Sign out error:', error);
     }

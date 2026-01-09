@@ -4,11 +4,13 @@ import { Search, Filter, Calendar, MapPin, Trash2, Eye, ChevronRight, Save, Down
 import { storage, SavedRecord } from '../../utils/storage';
 import { RecordDetailModal } from '../RecordDetailModal';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { syncToCloud } from '../../utils/supabaseService';
 import { DatabaseService } from '../../service/database.service';
 
 export function HistoryScreen() {
   const { t, language } = useLanguage();
+  const { user } = useAuth();
   const [records, setRecords] = useState<SavedRecord[]>([]);
   const [filteredRecords, setFilteredRecords] = useState<SavedRecord[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -21,50 +23,75 @@ export function HistoryScreen() {
   const [isSyncing, setIsSyncing] = useState(false);
 
   useEffect(() => {
+    storage.purgeSampleData(); // Clean up old mock data
     loadRecords();
   }, []);
 
   useEffect(() => {
     const loadFromCloud = async () => {
+      if (!user?.id) return;
+
       try {
-        const remote = await DatabaseService.getUserRecords();
+        // Pass explicit user ID to avoid stale state
+        const remote = await DatabaseService.getUserRecords(user.id);
         if (!remote || remote.length === 0) return;
+
         const toSaved: SavedRecord[] = remote.map(r => {
-          const typeMapped = r.type === 'ข้าว' || r.type === 'rice' ? 'rice' : 'sugarcane';
-          const created = new Date(r.timestamp);
-          const dateStr = created.toISOString().slice(0, 10);
-          const timeStr = created.toTimeString().slice(0, 5);
-          const polys = (r.polygons || []).map((poly: any) => {
-            const points = (poly.coordinates || []).map(([lng, lat]: [number, number]) => [lat, lng] as [number, number]);
-            const area = computeArea(points);
-            const color = typeMapped === 'rice' ? '#ef4444' : '#ef4444';
-            return { id: Math.random().toString(36).slice(2), points, area, type: 'burn' as const, color };
-          });
-          return {
-            id: r.id,
-            type: typeMapped,
-            date: dateStr,
-            time: timeStr,
-            location: { lat: r.location.lat, lng: r.location.lng, accuracy: 5 },
-            polygons: polys,
-            riceFieldType: undefined,
-            riceVariety: undefined,
-            burnType: undefined,
-            activities: undefined,
-            remarks: r.notes || '',
-            photos: r.photos || [],
-            createdAt: created.toISOString(),
-            status: 'saved',
-            synced: true,
-            supabaseId: r.supabaseId,
-          };
-        });
+          try {
+            const typeMapped = r.type === 'ข้าว' || r.type === 'rice' ? 'rice' : 'sugarcane';
+            const created = new Date(r.timestamp);
+            const dateStr = created.toISOString().slice(0, 10);
+            const timeStr = created.toTimeString().slice(0, 5);
+
+            const polygons = (r.polygons || []).map((poly: any) => {
+              if (!poly.coordinates || !Array.isArray(poly.coordinates)) return null;
+              const points = poly.coordinates.map(([lng, lat]: [number, number]) => [lat, lng] as [number, number]);
+              const area = computeArea(points);
+              const color = typeMapped === 'rice' ? '#ef4444' : '#ef4444';
+              return {
+                id: Math.random().toString(36).slice(2),
+                points,
+                area,
+                type: 'burn' as const,
+                color
+              };
+            }).filter(p => p !== null);
+
+            return {
+              id: r.id,
+              type: typeMapped,
+              date: dateStr,
+              time: timeStr,
+              location: { lat: r.location.lat, lng: r.location.lng, accuracy: 5 },
+              polygons: polygons as any[],
+              riceFieldType: undefined,
+              riceVariety: undefined,
+              burnType: undefined,
+              activities: undefined,
+              remarks: r.notes || '',
+              photos: r.photos || [],
+              createdAt: created.toISOString(),
+              status: 'saved',
+              synced: true,
+              supabaseId: r.supabaseId,
+            } as SavedRecord;
+          } catch (err) {
+            console.error('Error mapping record:', r, err);
+            return null;
+          }
+        }).filter((r): r is SavedRecord => r !== null);
+
         toSaved.forEach(rec => storage.saveRecord(rec));
         loadRecords();
-      } catch { }
+      } catch (e) {
+        console.error('Error loading from cloud:', e);
+      }
     };
-    loadFromCloud();
-  }, []);
+
+    if (user?.id) {
+      loadFromCloud();
+    }
+  }, [user?.id]);
 
   useEffect(() => {
     filterRecords();
@@ -105,10 +132,16 @@ export function HistoryScreen() {
     return area;
   };
 
+
+
   const handleSyncToCloud = async () => {
     setIsSyncing(true);
     try {
-      const result = await syncToCloud();
+      if (!user) {
+        alert(language === 'th' ? 'กรุณาเข้าสู่ระบบ' : 'Please log in');
+        return;
+      }
+      const result = await syncToCloud(user.id);
       alert(`✅ ${t('syncSuccess')} (${result.count} ${t('records')})`);
       loadRecords();
     } catch (error) {
@@ -352,6 +385,7 @@ export function HistoryScreen() {
             />
           </div>
 
+          {/* Download Button (Only if records exist) */}
           {filteredRecords.length > 0 && (
             <button
               onClick={toggleSelectMode}
@@ -362,6 +396,22 @@ export function HistoryScreen() {
             </button>
           )}
 
+          {/* Reset Key Button (New) */}
+          <button
+            onClick={() => {
+              if (confirm(language === 'th' ? 'คุณแน่ใจหรือไม่ที่จะลบข้อมูลทั้งหมด?' : 'Are you sure you want to delete ALL local data? This cannot be undone.')) {
+                storage.clearAllData();
+                loadRecords();
+                alert('Local data cleared.');
+              }
+            }}
+            className="px-3 py-2 rounded-xl transition-all shadow-md flex items-center gap-1.5 font-medium text-sm bg-red-100 text-red-600 border border-red-200 hover:bg-red-200"
+          >
+            <Trash2 className="w-4 h-4" />
+            <span className="hidden sm:inline">Reset</span>
+          </button>
+
+          {/* Sync Button */}
           <button
             onClick={handleSyncToCloud}
             disabled={isSyncing}
@@ -372,7 +422,7 @@ export function HistoryScreen() {
           </button>
         </div>
 
-        {/* Selection Mode Controls */}
+        {/* Selection Mode Controls (Expandable) */}
         {isSelectMode && filteredRecords.length > 0 && (
           <div className="space-y-2 pt-2 animate-in slide-in-from-top duration-200">
             <div className="flex items-center justify-between p-3 bg-green-50 rounded-xl border-2 border-green-200">

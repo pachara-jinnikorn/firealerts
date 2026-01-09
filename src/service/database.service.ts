@@ -179,9 +179,16 @@ export class DatabaseService {
   /**
    * Get all records for current user
    */
-  static async getUserRecords(): Promise<Record[]> {
+  static async getUserRecords(userId?: string): Promise<Record[]> {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      let user = null;
+      if (userId) {
+        user = { id: userId };
+      } else {
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        user = authUser;
+      }
+
       if (!user) return [];
 
       console.log('Fetching user records...');

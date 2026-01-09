@@ -4,20 +4,27 @@ import { SavedRecord, storage } from './storage';
 // Export the shared instance if needed by other modules (though direct import from lib is preferred)
 export { supabase };
 
-export const syncToCloud = async () => {
-  // Check if user is authenticated
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
-  
-  if (authError || !user) {
-    console.error('User not authenticated:', authError);
-    return { success: false, count: 0, error: 'Not authenticated' };
+export const syncToCloud = async (userId?: string) => {
+  let user = null;
+
+  if (userId) {
+    user = { id: userId };
+    console.log('Using provided User ID:', userId);
+  } else {
+    // Fallback to internal check
+    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+    if (authError || !authUser) {
+      console.error('User not authenticated:', authError);
+      return { success: false, count: 0, error: 'Not authenticated' };
+    }
+    user = authUser;
   }
 
   console.log('Syncing as user:', user.id);
 
   // Only sync records that are 'saved' (not drafts) and not yet synced
   const recordsToSync = storage.getRecords().filter(r => r.status === 'saved' && !r.synced);
-  
+
   if (recordsToSync.length === 0) {
     console.log('No records to sync');
     return { success: true, count: 0 };
@@ -63,7 +70,7 @@ export const syncToCloud = async () => {
       if (record.photos && record.photos.length > 0) {
         for (const [index, base64] of record.photos.entries()) {
           // Skip unsplash URLs if they are sample data
-          if (base64.startsWith('http')) continue; 
+          if (base64.startsWith('http')) continue;
 
           try {
             // Extract the base64 data and determine the mime type
@@ -75,7 +82,7 @@ export const syncToCloud = async () => {
 
             const mimeType = matches[1] || 'image/jpeg';
             const base64Data = matches[2];
-            
+
             // Convert base64 to binary
             const byteCharacters = atob(base64Data);
             const byteNumbers = new Array(byteCharacters.length);
