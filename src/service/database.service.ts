@@ -23,6 +23,7 @@ interface Record {
   }>;
   photos: string[];
   timestamp: number;
+  supabaseId?: string;
 }
 
 export class DatabaseService {
@@ -32,7 +33,7 @@ export class DatabaseService {
   static async saveRecord(record: Record): Promise<string | null> {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      
+
       if (!user) {
         throw new Error('User not authenticated');
       }
@@ -106,7 +107,7 @@ export class DatabaseService {
     for (let i = 0; i < photos.length; i++) {
       try {
         const photoDataUrl = photos[i];
-        
+
         // Skip HTTP URLs (sample data)
         if (photoDataUrl.startsWith('http')) {
           console.log(`Skipping external URL photo ${i + 1}`);
@@ -122,7 +123,7 @@ export class DatabaseService {
 
         const mimeType = matches[1] || 'image/jpeg';
         const base64Data = matches[2];
-        
+
         // Convert base64 to binary
         const byteCharacters = atob(base64Data);
         const byteNumbers = new Array(byteCharacters.length);
@@ -134,7 +135,7 @@ export class DatabaseService {
 
         // Determine file extension from mime type
         const extension = mimeType.split('/')[1] || 'jpg';
-        
+
         // Create unique file path: userId/recordId/photo_index_timestamp.ext
         const filePath = `${user.id}/${recordId}/photo_${i}_${Date.now()}.${extension}`;
 
@@ -298,6 +299,13 @@ export class DatabaseService {
     try {
       console.log(`Deleting record ${recordId}...`);
 
+      // Safety check: recordId must be a valid UUID (contains dashes)
+      // This prevents errors when trying to delete local-only records (timestamp IDs)
+      if (!recordId || !recordId.includes('-')) {
+        console.warn(`Skipping cloud delete: Invalid UUID format "${recordId}"`);
+        return true; // Treat as success to allow local delete to proceed
+      }
+
       // Get photos to delete from storage
       const { data: photos } = await supabase
         .from('burn_photos')
@@ -342,20 +350,48 @@ export class DatabaseService {
    */
   private static async transformToAppRecord(dbRecord: any): Promise<Record> {
     // Get photo URLs
-    const photoUrls = dbRecord.burn_photos 
+    const photoUrls = dbRecord.burn_photos
       ? await Promise.all(
-          dbRecord.burn_photos.map((p: any) => this.getPhotoUrl(p.storage_path))
-        )
+        dbRecord.burn_photos.map((p: any) => this.getPhotoUrl(p.storage_path))
+      )
       : [];
 
     // Parse location from PostGIS format
     let lat = 0, lng = 0;
     if (dbRecord.location) {
-      // Location is stored as POINT(lng lat)
-      const match = dbRecord.location.match(/POINT\(([^ ]+) ([^ ]+)\)/);
-      if (match) {
-        lng = parseFloat(match[1]);
-        lat = parseFloat(match[2]);
+      // Check for PostGIS Hex WKB format (starts with 01 for little endian, common in Supabase)
+      if (typeof dbRecord.location === 'string' && dbRecord.location.startsWith('01')) {
+        try {
+          // Parse Hex WKB
+          // Header is 1 byte endian + 4 bytes type + 4 bytes SRID = 9 bytes (18 hex chars)
+          // X is next 8 bytes (16 hex chars)
+          // Y is next 8 bytes (16 hex chars)
+          const hex = dbRecord.location;
+          const lngHex = hex.substring(18, 34);
+          const latHex = hex.substring(34, 50);
+
+          const parseHexFloat = (h: string) => {
+            const match = h.match(/.{1,2}/g);
+            if (!match) return 0;
+            const bytes = new Uint8Array(match.map(byte => parseInt(byte, 16)));
+            return new DataView(bytes.buffer).getFloat64(0, true);
+          };
+
+          lng = parseHexFloat(lngHex);
+          lat = parseHexFloat(latHex);
+        } catch (e) {
+          console.warn('Failed to parse WKB location:', e);
+        }
+      } else {
+        // Fallback to WKT string format: POINT(lng lat)
+        const match = typeof dbRecord.location === 'string'
+          ? dbRecord.location.match(/POINT\(([^ ]+) ([^ ]+)\)/)
+          : null;
+
+        if (match) {
+          lng = parseFloat(match[1]);
+          lat = parseFloat(match[2]);
+        }
       }
     }
 
@@ -373,6 +409,7 @@ export class DatabaseService {
       })) || [],
       photos: photoUrls.filter(url => url !== null) as string[],
       timestamp: new Date(dbRecord.created_at).getTime(),
+      supabaseId: dbRecord.id,
     };
   }
 
@@ -407,7 +444,7 @@ export class DatabaseService {
       const recordsByType = byType?.reduce((acc, r) => {
         acc[r.record_type] = (acc[r.record_type] || 0) + 1;
         return acc;
-      }, {} as {[key: string]: number});
+      }, {} as { [key: string]: number });
 
       return {
         totalRecords: totalRecords || 0,

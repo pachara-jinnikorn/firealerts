@@ -38,7 +38,7 @@ export function HistoryScreen() {
             const points = (poly.coordinates || []).map(([lng, lat]: [number, number]) => [lat, lng] as [number, number]);
             const area = computeArea(points);
             const color = typeMapped === 'rice' ? '#ef4444' : '#ef4444';
-            return { id: Math.random().toString(36).slice(2), points, area, type: 'burn', color };
+            return { id: Math.random().toString(36).slice(2), points, area, type: 'burn' as const, color };
           });
           return {
             id: r.id,
@@ -56,11 +56,12 @@ export function HistoryScreen() {
             createdAt: created.toISOString(),
             status: 'saved',
             synced: true,
+            supabaseId: r.supabaseId,
           };
         });
         toSaved.forEach(rec => storage.saveRecord(rec));
         loadRecords();
-      } catch {}
+      } catch { }
     };
     loadFromCloud();
   }, []);
@@ -79,7 +80,7 @@ export function HistoryScreen() {
     if (filterType !== 'all') filtered = filtered.filter(r => r.type === filterType);
     if (filterStatus !== 'all') filtered = filtered.filter(r => r.status === filterStatus);
     if (searchQuery) {
-      filtered = filtered.filter(r => 
+      filtered = filtered.filter(r =>
         r.date.includes(searchQuery) ||
         r.remarks?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         r.id.includes(searchQuery)
@@ -120,12 +121,16 @@ export function HistoryScreen() {
   const handleDelete = async (id: string) => {
     if (!confirm(t('confirmDelete'))) return;
     const record = records.find(r => r.id === id);
+    console.log('Attempting delete for:', id, 'Remote ID:', record?.supabaseId);
     try {
-      if (record?.supabaseId) {
+      // Verify valid UUID (timestamp IDs don't have dashes)
+      if (record?.supabaseId && record.supabaseId.includes('-')) {
         const ok = await DatabaseService.deleteRecord(record.supabaseId);
         if (!ok) {
           alert(language === 'th' ? 'ลบข้อมูลบนคลาวด์ไม่สำเร็จ' : 'Failed to delete on cloud');
         }
+      } else {
+        console.warn('Skipping cloud delete: Invalid supabaseId', record?.supabaseId);
       }
     } catch (e) {
       alert(language === 'th' ? 'เกิดข้อผิดพลาดในการลบบนคลาวด์' : 'Error deleting on cloud');
@@ -166,7 +171,7 @@ export function HistoryScreen() {
     try {
       const XLSX = await import('xlsx');
       const recordsToExport = records.filter(r => selectedForExport.has(r.id));
-      
+
       const excelData = recordsToExport.map(record => {
         const totalArea = record.polygons.reduce((sum, p) => sum + p.area, 0) / 1600;
         const burnArea = record.polygons.filter(p => p.type === 'burn').reduce((sum, p) => sum + p.area, 0) / 1600;
@@ -307,7 +312,7 @@ export function HistoryScreen() {
       alert(t('exportError'));
     }
   };
-  
+
 
   const stats = storage.getStats();
 
@@ -338,27 +343,27 @@ export function HistoryScreen() {
         <div className="flex items-center gap-2">
           <div className="flex-1 flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2 border border-gray-200 shadow-sm">
             <Search className="w-4 h-4 text-gray-500" />
-            <input 
-              type="text" 
-              placeholder={t('searchPlaceholder')} 
-              value={searchQuery} 
-              onChange={(e) => setSearchQuery(e.target.value)} 
-              className="flex-1 bg-transparent border-none outline-none text-sm" 
+            <input
+              type="text"
+              placeholder={t('searchPlaceholder')}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="flex-1 bg-transparent border-none outline-none text-sm"
             />
           </div>
-          
+
           {filteredRecords.length > 0 && (
-            <button 
-              onClick={toggleSelectMode} 
+            <button
+              onClick={toggleSelectMode}
               className={`px-3 py-2 rounded-xl transition-all shadow-md flex items-center gap-1.5 font-medium text-sm ${isSelectMode ? 'bg-gray-200 text-gray-700' : 'bg-green-600 text-white'}`}
             >
               <Download className="w-4 h-4" />
               <span>{isSelectMode ? t('cancel') : t('download')}</span>
             </button>
           )}
-          
-          <button 
-            onClick={handleSyncToCloud} 
+
+          <button
+            onClick={handleSyncToCloud}
             disabled={isSyncing}
             className="px-3 py-2 rounded-xl transition-all shadow-md flex items-center gap-1.5 font-medium text-sm bg-blue-600 text-white disabled:opacity-50"
           >
@@ -374,29 +379,29 @@ export function HistoryScreen() {
               <span className="text-sm font-medium text-gray-700">
                 {t('selected')}: {selectedForExport.size} {t('records').toLowerCase()}
               </span>
-              <button 
-                onClick={selectedForExport.size === filteredRecords.length ? deselectAll : selectAll} 
+              <button
+                onClick={selectedForExport.size === filteredRecords.length ? deselectAll : selectAll}
                 className="px-3 py-1.5 text-xs bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
                 {selectedForExport.size === filteredRecords.length ? t('deselectAll') : t('selectAll')}
               </button>
             </div>
-            
+
             <div className="grid grid-cols-2 gap-2">
-              <button 
-                onClick={exportToExcel} 
-                disabled={selectedForExport.size === 0} 
+              <button
+                onClick={exportToExcel}
+                disabled={selectedForExport.size === 0}
                 className="px-4 py-3 bg-green-600 text-white rounded-xl flex items-center justify-center gap-2 font-medium disabled:opacity-50 hover:bg-green-700 transition-colors shadow-lg shadow-green-200"
               >
-                <Download className="w-5 h-5" /> 
+                <Download className="w-5 h-5" />
                 <span>Excel</span>
               </button>
-              <button 
-                onClick={exportToPDF} 
-                disabled={selectedForExport.size === 0} 
+              <button
+                onClick={exportToPDF}
+                disabled={selectedForExport.size === 0}
                 className="px-4 py-3 bg-red-600 text-white rounded-xl flex items-center justify-center gap-2 font-medium disabled:opacity-50 hover:bg-red-700 transition-colors shadow-lg shadow-red-200"
               >
-                <FileText className="w-5 h-5" /> 
+                <FileText className="w-5 h-5" />
                 <span>PDF (+{t('photos')})</span>
               </button>
             </div>
@@ -415,15 +420,15 @@ export function HistoryScreen() {
         ) : (
           <div className="space-y-3 pb-4">
             {filteredRecords.map((record) => (
-              <RecordCard 
-                key={record.id} 
-                record={record} 
-                onView={() => handleView(record)} 
-                onDelete={() => handleDelete(record.id)} 
-                onSave={() => handleSaveDraft(record.id)} 
-                selectedForExport={selectedForExport} 
-                isSelectMode={isSelectMode} 
-                setSelectedForExport={setSelectedForExport} 
+              <RecordCard
+                key={record.id}
+                record={record}
+                onView={() => handleView(record)}
+                onDelete={() => handleDelete(record.id)}
+                onSave={() => handleSaveDraft(record.id)}
+                selectedForExport={selectedForExport}
+                isSelectMode={isSelectMode}
+                setSelectedForExport={setSelectedForExport}
               />
             ))}
           </div>
@@ -463,8 +468,8 @@ function RecordCard({ record, onView, onDelete, onSave, selectedForExport, isSel
   };
 
   return (
-    <div 
-      className={`bg-white rounded-2xl shadow-lg border overflow-hidden transition-all ${isSelectMode && isSelected ? 'border-green-500 border-2 ring-2 ring-green-200' : 'border-gray-200/50'}`} 
+    <div
+      className={`bg-white rounded-2xl shadow-lg border overflow-hidden transition-all ${isSelectMode && isSelected ? 'border-green-500 border-2 ring-2 ring-green-200' : 'border-gray-200/50'}`}
       onClick={isSelectMode ? handleToggleSelect : undefined}
     >
       <div className={`bg-gradient-to-r ${typeColor} px-4 py-4 flex items-center justify-between shadow-md`}>
