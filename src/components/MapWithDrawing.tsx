@@ -19,8 +19,8 @@ interface MapWithDrawingProps {
   onControlsReady?: (controls: any) => void;
 }
 
-export function MapWithDrawing({ 
-  children, 
+export function MapWithDrawing({
+  children,
   theme = 'rice',
   activeLayer = 'burn',
   onPolygonCreated,
@@ -41,7 +41,7 @@ export function MapWithDrawing({
   const tempMarkersRef = useRef<any[]>([]);
   const tempLineRef = useRef<any>(null);
   const LRef = useRef<any>(null);
-  
+
   // Refs to access latest state in callbacks/closures
   const activeLayerRef = useRef(activeLayer);
   const themeRef = useRef(theme);
@@ -62,21 +62,21 @@ export function MapWithDrawing({
   // Calculate polygon area using Leaflet GeometryUtil
   const calculateArea = (points: [number, number][]) => {
     if (!LRef.current || points.length < 3) return 0;
-    
+
     // Simple area calculation using shoelace formula
     let area = 0;
     const earthRadius = 6371000; // meters
-    
+
     for (let i = 0; i < points.length; i++) {
       const j = (i + 1) % points.length;
       const lat1 = points[i][0] * Math.PI / 180;
       const lat2 = points[j][0] * Math.PI / 180;
       const lng1 = points[i][1] * Math.PI / 180;
       const lng2 = points[j][1] * Math.PI / 180;
-      
+
       area += (lng2 - lng1) * (2 + Math.sin(lat1) + Math.sin(lat2));
     }
-    
+
     area = Math.abs(area * earthRadius * earthRadius / 2);
     return area;
   };
@@ -86,6 +86,12 @@ export function MapWithDrawing({
     setIsDrawing(true);
     setIsPinDropping(false); // Ensure pin dropping is off
     setDrawingPoints([]);
+
+    // Clear existing polygons from map
+    polygonLayersRef.current.forEach(p => p.layer.remove());
+    polygonLayersRef.current = [];
+    setPolygons([]);
+
     // Clear temporary markers
     tempMarkersRef.current.forEach(m => m.remove());
     tempMarkersRef.current = [];
@@ -98,7 +104,7 @@ export function MapWithDrawing({
   const stopDrawing = (pointsArg?: [number, number][]) => {
     console.log('⏸️ Stopping drawing mode...');
     setIsDrawing(false);
-    
+
     const points = pointsArg && pointsArg.length ? pointsArg : drawingPointsRef.current;
     if (points.length >= 3) {
       // Create polygon
@@ -106,10 +112,10 @@ export function MapWithDrawing({
       const currentActiveLayer = activeLayerRef.current;
       const currentTheme = themeRef.current;
 
-      const color = currentActiveLayer === 'burn' 
+      const color = currentActiveLayer === 'burn'
         ? (currentTheme === 'rice' ? '#f59e0b' : '#ef4444')
         : '#10b981';
-      
+
       const newPolygon: Polygon = {
         id: Date.now().toString(),
         points: points,
@@ -117,13 +123,13 @@ export function MapWithDrawing({
         type: currentActiveLayer,
         color,
       };
-      
+
       console.log('✅ Creating polygon:', newPolygon);
       setPolygons(prev => [...prev, newPolygon]);
       if (onPolygonCreated) {
         onPolygonCreated(newPolygon);
       }
-      
+
       // Draw polygon on map
       if (LRef.current && mapRef.current) {
         const polygonLayer = LRef.current.polygon(points, {
@@ -132,10 +138,10 @@ export function MapWithDrawing({
           fillOpacity: 0.3,
           weight: 3,
         }).addTo(mapRef.current);
-        
+
         const areaInRai = (area / 1600).toFixed(2);
         const layerName = currentActiveLayer === 'burn' ? '🔥 พื้นที่เผา' : '🌱 พื้นที่ไม่เผา';
-        
+
         polygonLayer.bindPopup(`
           <div class="text-sm">
             <strong class="${currentActiveLayer === 'burn' ? 'text-red-600' : 'text-green-600'}">${layerName}</strong><br/>
@@ -146,11 +152,11 @@ export function MapWithDrawing({
             </button>
           </div>
         `);
-        
+
         polygonLayersRef.current.push({ id: newPolygon.id, layer: polygonLayer });
       }
     }
-    
+
     // Clear temporary markers and lines
     tempMarkersRef.current.forEach(m => m.remove());
     tempMarkersRef.current = [];
@@ -184,7 +190,7 @@ export function MapWithDrawing({
     console.log('📍 Stopping pin drop mode...');
     setIsPinDropping(false);
   };
- 
+
   const togglePinDrop = () => {
     setIsPinDropping(prev => {
       const next = !prev;
@@ -199,7 +205,7 @@ export function MapWithDrawing({
   useEffect(() => {
     // Make deletePolygon available globally
     (window as any).deletePolygon = deletePolygon;
-    
+
     return () => {
       delete (window as any).deletePolygon;
     };
@@ -209,7 +215,7 @@ export function MapWithDrawing({
     const loadMap = async () => {
       const L = await import('leaflet');
       LRef.current = L;
-      
+
       if (!mapContainerRef.current || mapRef.current) return;
 
       console.log('🗺️ Initializing map...');
@@ -240,11 +246,11 @@ export function MapWithDrawing({
         iconAnchor: [20, 40],
       });
 
-      const userMarker = L.marker([userLocation.lat, userLocation.lng], { 
+      const userMarker = L.marker([userLocation.lat, userLocation.lng], {
         icon: userIcon,
-        zIndexOffset: 1000 
+        zIndexOffset: 1000
       }).addTo(map);
-      
+
       userMarker.bindPopup(`
         <div class="text-sm">
           <strong>📍 ตำแหน่งปัจจุบัน</strong><br/>
@@ -267,17 +273,17 @@ export function MapWithDrawing({
           return;
         }
         console.log('🖱️ Map clicked. Drawing mode:', (window as any).__isDrawingMode);
-        
+
         // Check if we're in drawing mode using the current state from the ref
         // We need to use a ref to get the latest state in the event handler
         if ((window as any).__isDrawingMode) {
           console.log('✏️ Adding point:', e.latlng.lat, e.latlng.lng);
           const newPoint: [number, number] = [e.latlng.lat, e.latlng.lng];
-          
+
           setDrawingPoints(prev => {
             const updated = [...prev, newPoint];
             console.log(`📍 Total points: ${updated.length}`);
-            
+
             const currentActiveLayer = activeLayerRef.current;
 
             // Add temporary marker
@@ -289,14 +295,14 @@ export function MapWithDrawing({
               opacity: 1,
               fillOpacity: 0.8,
             }).addTo(map);
-            
+
             tempMarkersRef.current.push(marker);
-            
+
             // Draw temporary line
             if (tempLineRef.current) {
               tempLineRef.current.remove();
             }
-            
+
             if (updated.length > 1) {
               tempLineRef.current = L.polyline(updated, {
                 color: currentActiveLayer === 'burn' ? '#ef4444' : '#10b981',
@@ -304,7 +310,7 @@ export function MapWithDrawing({
                 dashArray: '5, 5',
               }).addTo(map);
             }
-            
+
             if (updated.length >= 3 && LRef.current) {
               const first = updated[0];
               const current = newPoint;
@@ -316,7 +322,7 @@ export function MapWithDrawing({
                 stopDrawing(updated);
               }
             }
-            
+
             return updated;
           });
         } else if ((window as any).__isPinDropping) {
@@ -347,7 +353,7 @@ export function MapWithDrawing({
           `).openPopup();
 
           markersRef.current.push(newMarker);
-          
+
           if (onLocationSelected) {
             onLocationSelected({ lat: e.latlng.lat, lng: e.latlng.lng });
           }
@@ -381,7 +387,7 @@ export function MapWithDrawing({
             map.setView([newLat, newLng], 15);
             userMarker.setLatLng([newLat, newLng]);
           },
-          () => {}
+          () => { }
         );
       }
 
@@ -516,7 +522,7 @@ export function MapWithDrawing({
           onClick={(e) => e.stopPropagation()}
           onDoubleClick={(e) => e.stopPropagation()}
         >
-          {typeof children === 'function' 
+          {typeof children === 'function'
             ? children(controls)
             : children
           }
