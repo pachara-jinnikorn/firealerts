@@ -1,12 +1,1 @@
-{
-  "name": "Fire Alerts",
-  "short_name": "FireAlerts",
-  "start_url": "/",
-  "scope": "/",
-  "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#f59e0b",
-  "orientation": "portrait",
-  "prefer_related_applications": false,
-  "icons": []
-}
+{"name":"Fire Alerts","short_name":"FireAlerts","description":"Agricultural Burning Recorder","start_url":"/","display":"standalone","background_color":"#ffffff","theme_color":"#f59e0b","lang":"en","scope":"/","icons":[{"src":"pwa-192x192.png","sizes":"192x192","type":"image/png"},{"src":"pwa-512x512.png","sizes":"512x512","type":"image/png"}]}
