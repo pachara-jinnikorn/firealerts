@@ -4,7 +4,6 @@
  */
 
 import { DatabaseService } from './database.service';
-import { APIClient } from './apiClient';
 import { storage, SavedRecord } from '../utils/storage';
 
 export class RecordService {
@@ -56,10 +55,5 @@ export class RecordService {
         return true;
     }
 
-    /**
-     * Sample method if using a Custom REST API instead of Supabase
-     */
-    static async fetchFromCustomAPI() {
-        return await APIClient.get<any[]>('/records');
+
     }
-}
