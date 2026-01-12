@@ -17,6 +17,7 @@ interface MapWithDrawingProps {
   onMapReady?: (map: any) => void;
   onLocationSelected?: (location: { lat: number; lng: number }) => void;
   onControlsReady?: (controls: any) => void;
+  initialPolygons?: Polygon[];
 }
 
 export function MapWithDrawing({
@@ -27,7 +28,8 @@ export function MapWithDrawing({
   onPolygonDeleted,
   onMapReady,
   onLocationSelected,
-  onControlsReady
+  onControlsReady,
+  initialPolygons = []
 }: MapWithDrawingProps) {
   const mapRef = useRef<any>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -35,7 +37,7 @@ export function MapWithDrawing({
   const [isDrawing, setIsDrawing] = useState(false);
   const [isPinDropping, setIsPinDropping] = useState(false);
   const [drawingPoints, setDrawingPoints] = useState<[number, number][]>([]);
-  const [polygons, setPolygons] = useState<Polygon[]>([]);
+  const [polygons, setPolygons] = useState<Polygon[]>(initialPolygons);
   const markersRef = useRef<any[]>([]);
   const polygonLayersRef = useRef<any[]>([]);
   const tempMarkersRef = useRef<any[]>([]);
@@ -210,6 +212,43 @@ export function MapWithDrawing({
       delete (window as any).deletePolygon;
     };
   }, []);
+
+  // Render initial polygons when map and L are ready
+  useEffect(() => {
+    if (LRef.current && mapRef.current && initialPolygons.length > 0 && polygonLayersRef.current.length === 0) {
+      console.log('🎨 Rendering initial polygons:', initialPolygons.length);
+      initialPolygons.forEach(polygon => {
+        const polygonLayer = LRef.current.polygon(polygon.points, {
+          color: polygon.color,
+          fillColor: polygon.color,
+          fillOpacity: 0.3,
+          weight: 3,
+        }).addTo(mapRef.current);
+
+        const areaInRai = (polygon.area / 1600).toFixed(2);
+        const layerName = polygon.type === 'burn' ? '🔥 พื้นที่เผา' : '🌱 พื้นที่ไม่เผา';
+
+        polygonLayer.bindPopup(`
+          <div class="text-sm">
+            <strong class="${polygon.type === 'burn' ? 'text-red-600' : 'text-green-600'}">${layerName}</strong><br/>
+            <span class="text-lg font-semibold">${areaInRai} ไร่</span><br/>
+            <span class="text-xs text-gray-600">≈ ${Math.round(polygon.area)} ตร.ม.</span><br/>
+            <button class="mt-2 px-3 py-1 bg-red-500 text-white text-xs rounded-lg hover:bg-red-600" onclick="window.deletePolygon('${polygon.id}')">
+              ลบ Polygon
+            </button>
+          </div>
+        `);
+
+        polygonLayersRef.current.push({ id: polygon.id, layer: polygonLayer });
+      });
+
+      // If there are polygons, fit map bounds to them
+      if (initialPolygons.length > 0) {
+        const bounds = LRef.current.latLngBounds(initialPolygons.flatMap(p => p.points));
+        mapRef.current.fitBounds(bounds, { padding: [50, 50] });
+      }
+    }
+  }, [initialPolygons, LRef.current, mapRef.current]);
 
   useEffect(() => {
     const loadMap = async () => {

@@ -44,7 +44,8 @@ export default function Login() {
         data: 'จัดการข้อมูล',
         dataDesc: 'บันทึกและส่งออกข้อมูล Excel',
         sync: 'ซิงค์อัตโนมัติ',
-        syncDesc: 'ข้อมูลปลอดภัยบน Cloud Storage'
+        syncDesc: 'ข้อมูลปลอดภัยบน Cloud Storage',
+        signUpDisabled: 'ขออภัย ระบบการสร้างบัญชีถูกปิดใช้งานชั่วคราว'
       }
     },
     en: {
@@ -75,7 +76,8 @@ export default function Login() {
         data: 'Data Management',
         dataDesc: 'Save and export to Excel format',
         sync: 'Auto Sync',
-        syncDesc: 'Secure cloud data storage'
+        syncDesc: 'Secure cloud data storage',
+        signUpDisabled: 'Sorry, sign-up is temporarily disabled.'
       }
     }
   };
@@ -96,14 +98,14 @@ export default function Login() {
         throw new Error(language === 'th' ? 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร' : 'Password must be at least 6 characters');
       }
 
-      const { error } = isSignUp 
+      const { error } = isSignUp
         ? await signUp(email, password)
         : await signIn(email, password);
 
       if (error) {
         // Translate common error messages
         let errorMessage = error.message;
-        
+
         if (language === 'th') {
           if (error.message.includes('Invalid login credentials')) {
             errorMessage = 'อีเมลหรือรหัสผ่านไม่ถูกต้อง';
@@ -115,7 +117,7 @@ export default function Login() {
             errorMessage = 'รหัสผ่านไม่ถูกต้อง';
           }
         }
-        
+
         throw new Error(errorMessage);
       }
 
@@ -141,21 +143,19 @@ export default function Login() {
             <div className="inline-flex bg-white rounded-full shadow-md border border-gray-200 p-1">
               <button
                 onClick={() => setLanguage('th')}
-                className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                  language === 'th'
-                    ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
+                className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${language === 'th'
+                  ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md'
+                  : 'text-gray-600 hover:text-gray-900'
+                  }`}
               >
                 ไทย
               </button>
               <button
                 onClick={() => setLanguage('en')}
-                className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                  language === 'en'
-                    ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
+                className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${language === 'en'
+                  ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md'
+                  : 'text-gray-600 hover:text-gray-900'
+                  }`}
               >
                 EN
               </button>
@@ -183,11 +183,10 @@ export default function Login() {
                   setError('');
                   setSuccess('');
                 }}
-                className={`flex-1 py-3 rounded-xl font-semibold transition-all ${
-                  !isSignUp
-                    ? 'bg-white text-gray-900 shadow-md'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
+                className={`flex-1 py-3 rounded-xl font-semibold transition-all ${!isSignUp
+                  ? 'bg-white text-gray-900 shadow-md'
+                  : 'text-gray-600 hover:text-gray-900'
+                  }`}
               >
                 {currentLang.signIn}
               </button>
@@ -197,11 +196,10 @@ export default function Login() {
                   setError('');
                   setSuccess('');
                 }}
-                className={`flex-1 py-3 rounded-xl font-semibold transition-all ${
-                  isSignUp
-                    ? 'bg-white text-gray-900 shadow-md'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
+                className={`flex-1 py-3 rounded-xl font-semibold transition-all ${isSignUp
+                  ? 'bg-white text-gray-900 shadow-md'
+                  : 'text-gray-600 hover:text-gray-900'
+                  }`}
               >
                 {currentLang.signUp}
               </button>
@@ -279,11 +277,24 @@ export default function Login() {
                 </div>
               )}
 
+              {/* Sign Up Disabled Message */}
+              {isSignUp && (
+                <div className="mb-5 p-4 bg-amber-50 border-2 border-amber-200 rounded-xl flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-amber-800 font-medium">
+                    {currentLang.features.signUpDisabled}
+                  </p>
+                </div>
+              )}
+
               {/* Submit Button */}
               <button
                 type="submit"
-                disabled={loading}
-                className="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-semibold py-4 rounded-xl shadow-lg shadow-orange-300/50 hover:shadow-xl hover:shadow-orange-400/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                disabled={loading || isSignUp}
+                className={`w-full font-semibold py-4 rounded-xl shadow-lg transition-all duration-200 ${isSignUp
+                    ? 'bg-gray-300 cursor-not-allowed text-gray-500 shadow-none'
+                    : 'bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-orange-300/50 hover:shadow-xl hover:shadow-orange-400/50 disabled:opacity-50 disabled:cursor-not-allowed'
+                  }`}
               >
                 {loading ? (
                   <span className="flex items-center justify-center gap-2">
@@ -329,7 +340,7 @@ export default function Login() {
         {/* Decorative Elements */}
         <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl" />
         <div className="absolute bottom-0 left-0 w-96 h-96 bg-white/10 rounded-full blur-3xl" />
-        
+
         <div className="relative z-10 max-w-lg">
           <div className="mb-12">
             <h2 className="text-4xl font-bold text-white mb-4 drop-shadow-lg">

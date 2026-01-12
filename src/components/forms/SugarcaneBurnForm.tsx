@@ -11,23 +11,24 @@ interface SugarcaneBurnFormProps {
   polygons?: any[];
   onNavigateToMap?: () => void;
   mapSelectedLocation?: { lat: number; lng: number } | null;
+  initialData?: any;
 }
 
-export function SugarcaneBurnForm({ onSave, onSaveDraft, polygons = [], onNavigateToMap, mapSelectedLocation }: SugarcaneBurnFormProps) {
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-  const [time, setTime] = useState(new Date().toTimeString().slice(0, 5));
+export function SugarcaneBurnForm({ onSave, onSaveDraft, polygons = [], onNavigateToMap, mapSelectedLocation, initialData }: SugarcaneBurnFormProps) {
+  const [date, setDate] = useState(initialData?.date || new Date().toISOString().split('T')[0]);
+  const [time, setTime] = useState(initialData?.time || new Date().toTimeString().slice(0, 5));
   const [gpsEnabled, setGpsEnabled] = useState(true);
-  const [burnType, setBurnType] = useState<'before' | 'after' | 'unspecified'>('before');
-  const [activities, setActivities] = useState({
+  const [burnType, setBurnType] = useState<'before' | 'after'>(initialData?.burnType || 'before');
+  const [activities, setActivities] = useState(initialData?.activities || {
     plowing: false,
     collecting: false,
     other: false,
   });
-  const [otherActivity, setOtherActivity] = useState('');
-  const [remarks, setRemarks] = useState('');
+  const [otherActivity, setOtherActivity] = useState(initialData?.activities?.otherText || '');
+  const [remarks, setRemarks] = useState(initialData?.remarks || '');
   const [loading, setLoading] = useState(false);
-  const [photos, setPhotos] = useState<string[]>([]);
-  const [currentLocation, setCurrentLocation] = useState<{lat: number, lng: number, accuracy?: number} | null>(null);
+  const [photos, setPhotos] = useState<string[]>(initialData?.photos || []);
+  const [currentLocation, setCurrentLocation] = useState<{ lat: number, lng: number, accuracy?: number } | null>(null);
   const [locationLoading, setLocationLoading] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
   const { t } = useLanguage();
@@ -123,7 +124,7 @@ export function SugarcaneBurnForm({ onSave, onSaveDraft, polygons = [], onNaviga
     setLoading(true);
     await new Promise(resolve => setTimeout(resolve, 1000));
     setLoading(false);
-    
+
     const data = {
       date,
       time,
@@ -141,7 +142,7 @@ export function SugarcaneBurnForm({ onSave, onSaveDraft, polygons = [], onNaviga
         accuracy: currentLocation.accuracy
       } : null,
     };
-    
+
     if (isDraft) {
       onSaveDraft(data);
     } else {
@@ -185,12 +186,12 @@ export function SugarcaneBurnForm({ onSave, onSaveDraft, polygons = [], onNaviga
 
       {/* Location */}
       <div>
-          <label className="block text-sm text-gray-700 mb-3 flex items-center gap-1.5">
-            <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-              <MapPin className="w-4 h-4 text-green-600" />
-            </div>
-            <span>{t('location')}</span>
-          </label>
+        <label className="block text-sm text-gray-700 mb-3 flex items-center gap-1.5">
+          <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+            <MapPin className="w-4 h-4 text-green-600" />
+          </div>
+          <span>{t('location')}</span>
+        </label>
         <Toggle
           label={t('gpsLocation')}
           checked={gpsEnabled}
@@ -267,20 +268,19 @@ export function SugarcaneBurnForm({ onSave, onSaveDraft, polygons = [], onNaviga
 
       {/* Burn Type */}
       <div>
-          <label className="block text-sm text-gray-700 mb-3 flex items-center gap-1.5">
-            <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
-              <Flame className="w-4 h-4 text-orange-600" />
-            </div>
-            <span>{t('burnType')}</span>
-          </label>
+        <label className="block text-sm text-gray-700 mb-3 flex items-center gap-1.5">
+          <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
+            <Flame className="w-4 h-4 text-orange-600" />
+          </div>
+          <span>{t('burnType')}</span>
+        </label>
         <SegmentedControl
           options={[
             { value: 'before', label: `🔥 ${t('burnBefore')}` },
             { value: 'after', label: `✂️ ${t('burnAfter')}` },
-            { value: 'unspecified', label: `❓ ${t('unspecifiedField')}` },
           ]}
           value={burnType}
-          onChange={(value) => setBurnType(value as 'before' | 'after' | 'unspecified')}
+          onChange={(value) => setBurnType(value as 'before' | 'after')}
         />
       </div>
 
@@ -366,7 +366,7 @@ export function SugarcaneBurnForm({ onSave, onSaveDraft, polygons = [], onNaviga
           </div>
           <span>{t('photos')}</span>
         </label>
-        
+
         {/* Photo Preview Grid */}
         {photos.length > 0 && (
           <div className="grid grid-cols-3 gap-3 mb-3">
@@ -383,7 +383,7 @@ export function SugarcaneBurnForm({ onSave, onSaveDraft, polygons = [], onNaviga
             ))}
           </div>
         )}
-        
+
         {/* Upload Button */}
         <label className="w-full px-4 py-4 bg-gradient-to-br from-gray-50 to-gray-100 border-2 border-dashed border-gray-300 rounded-2xl text-gray-600 hover:border-pink-300 hover:bg-pink-50 active:scale-98 transition-all flex items-center justify-center gap-3 shadow-sm cursor-pointer">
           <Camera className="w-6 h-6 text-pink-500" />

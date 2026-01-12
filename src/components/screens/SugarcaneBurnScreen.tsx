@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { AppBar } from '../AppBar';
 import { MapWithDrawing } from '../MapWithDrawing';
 import { FloatingButtons } from '../FloatingButtons';
@@ -9,7 +9,12 @@ import { LayerSwitch } from '../LayerSwitch';
 import { storage, SavedRecord } from '../../utils/storage';
 import { useLanguage } from '../../contexts/LanguageContext';
 
-export function SugarcaneBurnScreen() {
+interface SugarcaneBurnScreenProps {
+  editingRecord?: SavedRecord | null;
+  onSaveSuccess?: () => void;
+}
+
+export function SugarcaneBurnScreen({ editingRecord, onSaveSuccess }: SugarcaneBurnScreenProps) {
   const { t, language } = useLanguage();
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
@@ -18,6 +23,17 @@ export function SugarcaneBurnScreen() {
   const [isSheetExpanded, setIsSheetExpanded] = useState(true);
   const [mapInstance, setMapInstance] = useState<any>(null);
   const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: number } | null>(null);
+
+  // Initialize from editingRecord
+  useEffect(() => {
+    if (editingRecord && editingRecord.type === 'sugarcane') {
+      setPolygons(editingRecord.polygons || []);
+      setSelectedLocation(editingRecord.location);
+      if (editingRecord.location && mapInstance) {
+        mapInstance.setView([editingRecord.location.lat, editingRecord.location.lng], 18);
+      }
+    }
+  }, [editingRecord, mapInstance]);
 
   // NEW: Store the drawing controls from the map
   const [drawingControls, setDrawingControls] = useState<any>(null);
@@ -36,11 +52,11 @@ export function SugarcaneBurnScreen() {
 
   const handleSave = (data: any) => {
     const record: SavedRecord = {
-      id: Date.now().toString(),
+      id: editingRecord?.id || Date.now().toString(),
       type: 'sugarcane',
       date: data.date,
       time: data.time,
-      location: data.location || {
+      location: data.location || selectedLocation || {
         lat: 13.7563,
         lng: 100.5018,
         accuracy: 5,
@@ -50,7 +66,7 @@ export function SugarcaneBurnScreen() {
       activities: data.activities,
       remarks: data.remarks,
       photos: data.photos,
-      createdAt: new Date().toISOString(),
+      createdAt: editingRecord?.createdAt || new Date().toISOString(),
       status: 'saved',
     };
 
@@ -59,7 +75,10 @@ export function SugarcaneBurnScreen() {
     const nonBurnPolygons = polygons.filter(p => p.type === 'non-burn');
     setToastMessage(`✓ ${t('saveData')} - ${t('burnArea')}: ${burnPolygons.length}, ${t('noBurnArea')}: ${nonBurnPolygons.length}`);
     setShowToast(true);
-    setTimeout(() => setShowToast(false), 3000);
+    setTimeout(() => {
+      setShowToast(false);
+      onSaveSuccess?.();
+    }, 1500);
 
     // Reset
     setPolygons([]);
@@ -67,11 +86,11 @@ export function SugarcaneBurnScreen() {
 
   const handleSaveDraft = (data: any) => {
     const record: SavedRecord = {
-      id: Date.now().toString(),
+      id: editingRecord?.id || Date.now().toString(),
       type: 'sugarcane',
       date: data.date,
       time: data.time,
-      location: data.location || {
+      location: data.location || selectedLocation || {
         lat: 13.7563,
         lng: 100.5018,
         accuracy: 5,
@@ -81,14 +100,17 @@ export function SugarcaneBurnScreen() {
       activities: data.activities,
       remarks: data.remarks,
       photos: data.photos,
-      createdAt: new Date().toISOString(),
+      createdAt: editingRecord?.createdAt || new Date().toISOString(),
       status: 'draft',
     };
 
     storage.saveRecord(record);
     setToastMessage(`📝 ${t('saveDraft')}`);
     setShowToast(true);
-    setTimeout(() => setShowToast(false), 3000);
+    setTimeout(() => {
+      setShowToast(false);
+      onSaveSuccess?.();
+    }, 1500);
   };
 
   const handleLocateMe = () => {
@@ -227,6 +249,7 @@ export function SugarcaneBurnScreen() {
             setShowToast(true);
             setTimeout(() => setShowToast(false), 2500);
           }}
+          initialPolygons={polygons}
         >
           {(controls: any) => {
             return (
@@ -259,8 +282,15 @@ export function SugarcaneBurnScreen() {
         </MapWithDrawing>
 
         {/* Bottom Sheet with Form */}
-        <BottomSheet title={`${t('sugarcaneTitle')} (${t('sugarcaneSubtitle')})`} status="draft" theme="sugarcane" isExpanded={isSheetExpanded} onExpandChange={setIsSheetExpanded}>
-          <SugarcaneBurnForm onSave={handleSave} onSaveDraft={handleSaveDraft} polygons={polygons} onNavigateToMap={handleNavigateToMap} mapSelectedLocation={selectedLocation} />
+        <BottomSheet title={`${t('sugarcaneTitle')} (${t('sugarcaneSubtitle')})`} status={editingRecord?.status || "draft"} theme="sugarcane" isExpanded={isSheetExpanded} onExpandChange={setIsSheetExpanded}>
+          <SugarcaneBurnForm
+            onSave={handleSave}
+            onSaveDraft={handleSaveDraft}
+            polygons={polygons}
+            onNavigateToMap={handleNavigateToMap}
+            mapSelectedLocation={selectedLocation}
+            initialData={editingRecord}
+          />
         </BottomSheet>
       </div>
 

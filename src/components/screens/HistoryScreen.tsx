@@ -8,7 +8,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { syncToCloud } from '../../utils/supabaseService';
 import { DatabaseService } from '../../service/database.service';
 
-export function HistoryScreen() {
+export function HistoryScreen({ onEditRecord }: { onEditRecord?: (record: SavedRecord) => void }) {
   const { t, language } = useLanguage();
   const { user } = useAuth();
   const [records, setRecords] = useState<SavedRecord[]>([]);
@@ -21,6 +21,7 @@ export function HistoryScreen() {
   const [selectedForExport, setSelectedForExport] = useState<Set<string>>(new Set());
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [filterDate, setFilterDate] = useState('');
 
   // Sync current user ID to localStorage for storage.ts
   useEffect(() => {
@@ -102,7 +103,7 @@ export function HistoryScreen() {
 
   useEffect(() => {
     filterRecords();
-  }, [records, searchQuery, filterType, filterStatus]);
+  }, [records, searchQuery, filterType, filterStatus, filterDate]);
 
   const loadRecords = () => {
     const allRecords = storage.getRecords();
@@ -113,6 +114,7 @@ export function HistoryScreen() {
     let filtered = records;
     if (filterType !== 'all') filtered = filtered.filter(r => r.type === filterType);
     if (filterStatus !== 'all') filtered = filtered.filter(r => r.status === filterStatus);
+    if (filterDate) filtered = filtered.filter(r => r.date === filterDate);
     if (searchQuery) {
       filtered = filtered.filter(r =>
         r.date.includes(searchQuery) ||
@@ -191,21 +193,46 @@ export function HistoryScreen() {
     const record = records.find(r => r.id === id);
     console.log('Attempting delete for:', id, 'Remote ID:', record?.supabaseId);
     try {
-      // Verify valid UUID (timestamp IDs don't have dashes)
       if (record?.supabaseId && record.supabaseId.includes('-')) {
-        const ok = await DatabaseService.deleteRecord(record.supabaseId);
-        if (!ok) {
-          alert(language === 'th' ? 'ลบข้อมูลบนคลาวด์ไม่สำเร็จ' : 'Failed to delete on cloud');
-        }
-      } else {
-        console.warn('Skipping cloud delete: Invalid supabaseId', record?.supabaseId);
+        await DatabaseService.deleteRecord(record.supabaseId);
       }
     } catch (e) {
-      alert(language === 'th' ? 'เกิดข้อผิดพลาดในการลบบนคลาวด์' : 'Error deleting on cloud');
+      console.error('Error deleting on cloud:', e);
     } finally {
       storage.deleteRecord(id);
       loadRecords();
     }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedForExport.size === 0) return;
+    const confirmMsg = language === 'th'
+      ? `คุณแน่ใจหรือไม่ที่จะลบข้อมูลที่เลือกทั้งหมด (${selectedForExport.size} รายการ)?`
+      : `Are you sure you want to delete the ${selectedForExport.size} selected records?`;
+
+    if (!confirm(confirmMsg)) return;
+
+    const idsToDelete = Array.from(selectedForExport);
+
+    // Process cloud deletions first
+    for (const id of idsToDelete) {
+      const record = records.find(r => r.id === id);
+      if (record?.supabaseId && record.supabaseId.includes('-')) {
+        try {
+          await DatabaseService.deleteRecord(record.supabaseId);
+        } catch (e) {
+          console.error('Error deleting on cloud for id:', id, e);
+        }
+      }
+    }
+
+    // Process local deletions
+    idsToDelete.forEach(id => storage.deleteRecord(id));
+
+    setSelectedForExport(new Set());
+    setIsSelectMode(false);
+    loadRecords();
+    alert(language === 'th' ? 'ลบข้อมูลสำเร็จ' : 'Deletion successful');
   };
 
   const handleView = (record: SavedRecord) => {
@@ -388,28 +415,38 @@ export function HistoryScreen() {
     <div className="relative h-full flex flex-col bg-gradient-to-br from-gray-50 to-gray-100">
       <AppBar title={t('appTitle')} subtitle={t('appSubtitle')} bgColor="bg-gradient-to-r from-gray-700 to-gray-800 px-4 py-4 border-b border-white/10" />
 
-      {/* Stats Summary */}
-      <div className="px-4 py-2 bg-gradient-to-br from-blue-600 via-blue-500 to-indigo-600 shadow-xl">
-        <div className="grid grid-cols-3 gap-1.5">
-          <div className="bg-white/25 backdrop-blur-lg rounded-lg p-2 text-center border border-white/30 shadow-lg">
+      {/* Stats Summary / Interactive Filter */}
+      <div className="px-4 py-2 bg-gradient-to-br from-blue-600 via-blue-500 to-indigo-600 shadow-xl overflow-x-auto no-scrollbar">
+        <div className="grid grid-cols-3 gap-1 min-w-[300px]">
+          <button
+            onClick={() => setFilterType('all')}
+            className={`backdrop-blur-lg rounded-lg p-1.5 md:p-2 text-center border transition-all ${filterType === 'all' ? 'bg-white/40 border-white shadow-[0_0_15px_rgba(255,255,255,0.3)] scale-[1.02]' : 'bg-white/20 border-white/30 hover:bg-white/30'}`}
+          >
             <div className="text-xl font-bold text-white drop-shadow-lg">{stats.total}</div>
-            <div className="text-[9px] text-white/90 font-medium">{t('totalRecords')}</div>
-          </div>
-          <div className="bg-white/25 backdrop-blur-lg rounded-lg p-2 text-center border border-white/30 shadow-lg">
+            <div className="text-[9px] md:text-[10px] text-white/90 font-bold uppercase tracking-wider">{t('totalRecords')}</div>
+          </button>
+          <button
+            onClick={() => setFilterType('rice')}
+            className={`backdrop-blur-lg rounded-lg p-1.5 md:p-2 text-center border transition-all ${filterType === 'rice' ? 'bg-white/40 border-white shadow-[0_0_15px_rgba(255,255,255,0.3)] scale-[1.02]' : 'bg-white/20 border-white/30 hover:bg-white/30'}`}
+          >
             <div className="text-xl font-bold text-white drop-shadow-lg">{stats.rice}</div>
-            <div className="text-[9px] text-white/90 font-medium">🌾 {t('rice')}</div>
-          </div>
-          <div className="bg-white/25 backdrop-blur-lg rounded-lg p-2 text-center border border-white/30 shadow-lg">
+            <div className="text-[9px] md:text-[10px] text-white/90 font-bold uppercase tracking-wider">🌾 {t('rice')}</div>
+          </button>
+          <button
+            onClick={() => setFilterType('sugarcane')}
+            className={`backdrop-blur-lg rounded-lg p-1.5 md:p-2 text-center border transition-all ${filterType === 'sugarcane' ? 'bg-white/40 border-white shadow-[0_0_15px_rgba(255,255,255,0.3)] scale-[1.02]' : 'bg-white/20 border-white/30 hover:bg-white/30'}`}
+          >
             <div className="text-xl font-bold text-white drop-shadow-lg">{stats.sugarcane}</div>
-            <div className="text-[9px] text-white/90 font-medium">🌿 {t('sugarcane')}</div>
-          </div>
+            <div className="text-[9px] md:text-[10px] text-white/90 font-bold uppercase tracking-wider">🌿 {t('sugarcane')}</div>
+          </button>
         </div>
       </div>
 
       {/* Control Bar */}
-      <div className="px-4 py-3 bg-white/80 backdrop-blur-sm border-b border-gray-200/70 space-y-2 shadow-md">
-        <div className="flex items-center gap-2">
-          <div className="flex-1 flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2 border border-gray-200 shadow-sm">
+      <div className="px-4 py-3 bg-white/80 backdrop-blur-sm border-b border-gray-200/70 space-y-3 shadow-md">
+        <div className="flex flex-col gap-3">
+          {/* Top Row: Search */}
+          <div className="w-full flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2 border border-gray-200 shadow-sm transition-all focus-within:ring-2 focus-within:ring-blue-500/20">
             <Search className="w-4 h-4 text-gray-500" />
             <input
               type="text"
@@ -420,41 +457,50 @@ export function HistoryScreen() {
             />
           </div>
 
-          {/* Download Button (Only if records exist) */}
-          {filteredRecords.length > 0 && (
-            <button
-              onClick={toggleSelectMode}
-              className={`px-3 py-2 rounded-xl transition-all shadow-md flex items-center gap-1.5 font-medium text-sm ${isSelectMode ? 'bg-gray-200 text-gray-700' : 'bg-green-600 text-white'}`}
-            >
-              <Download className="w-4 h-4" />
-              <span>{isSelectMode ? t('cancel') : t('download')}</span>
-            </button>
-          )}
+          {/* Bottom Row: Calendar and Actions */}
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
+            <div className="flex-1 min-w-[140px] flex items-center gap-1.5 bg-gray-50 rounded-xl px-2.5 py-2 border border-gray-200 shadow-sm transition-all focus-within:ring-2 focus-within:ring-blue-500/20">
+              <Calendar className={`w-3.5 h-3.5 shrink-0 ${filterDate ? 'text-blue-600' : 'text-gray-500'}`} />
+              <input
+                type="date"
+                value={filterDate}
+                onChange={(e) => setFilterDate(e.target.value)}
+                className="bg-transparent border-none outline-none text-[13px] font-medium text-gray-700 w-full"
+              />
+              {filterDate && (
+                <button
+                  onClick={() => setFilterDate('')}
+                  className="p-1 hover:bg-gray-200 rounded-full transition-colors shrink-0"
+                >
+                  <Trash2 className="w-3.5 h-3.5 text-gray-400 hover:text-red-500" />
+                </button>
+              )}
+            </div>
 
-          {/* Reset Key Button (New) */}
-          <button
-            onClick={() => {
-              if (confirm(language === 'th' ? 'คุณแน่ใจหรือไม่ที่จะลบข้อมูลทั้งหมด?' : 'Are you sure you want to delete ALL local data? This cannot be undone.')) {
-                storage.clearAllData();
-                loadRecords();
-                alert('Local data cleared.');
-              }
-            }}
-            className="px-3 py-2 rounded-xl transition-all shadow-md flex items-center gap-1.5 font-medium text-sm bg-red-100 text-red-600 border border-red-200 hover:bg-red-200"
-          >
-            <Trash2 className="w-4 h-4" />
-            <span className="hidden sm:inline">Reset</span>
-          </button>
+            <div className="flex items-center gap-2 shrink-0">
+              {/* Sync Button */}
+              <button
+                onClick={handleSyncToCloud}
+                disabled={isSyncing}
+                title={t('sync')}
+                className="p-2.5 rounded-xl transition-all shadow-sm bg-blue-600 text-white disabled:opacity-50 active:scale-95"
+              >
+                <CloudUpload className="w-4 h-4" />
+              </button>
 
-          {/* Sync Button */}
-          <button
-            onClick={handleSyncToCloud}
-            disabled={isSyncing}
-            className="px-3 py-2 rounded-xl transition-all shadow-md flex items-center gap-1.5 font-medium text-sm bg-blue-600 text-white disabled:opacity-50"
-          >
-            <CloudUpload className="w-4 h-4" />
-            <span>{isSyncing ? t('syncing') : t('sync')}</span>
-          </button>
+              {/* Download/Select Button */}
+              {filteredRecords.length > 0 && (
+                <button
+                  onClick={toggleSelectMode}
+                  className={`p-2.5 rounded-xl transition-all shadow-sm flex items-center gap-1.5 font-medium text-sm ${isSelectMode ? 'bg-gray-200 text-gray-700' : 'bg-green-600 text-white'}`}
+                >
+                  <Download className="w-4 h-4" />
+                  {!isSelectMode && <span className="hidden sm:inline">{t('download')}</span>}
+                  {isSelectMode && <span>{t('cancel')}</span>}
+                </button>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Selection Mode Controls (Expandable) */}
@@ -490,6 +536,15 @@ export function HistoryScreen() {
                 <span>PDF (+{t('photos')})</span>
               </button>
             </div>
+
+            <button
+              onClick={handleBulkDelete}
+              disabled={selectedForExport.size === 0}
+              className="w-full mt-2 px-4 py-3 bg-red-100 text-red-600 rounded-xl flex items-center justify-center gap-2 font-bold border border-red-200 disabled:opacity-50 hover:bg-red-200 transition-colors shadow-sm"
+            >
+              <Trash2 className="w-5 h-5" />
+              <span>{language === 'th' ? 'ลบรายการที่เลือก' : 'Delete Selected'} ({selectedForExport.size})</span>
+            </button>
           </div>
         )}
       </div>
@@ -511,6 +566,7 @@ export function HistoryScreen() {
                 onView={() => handleView(record)}
                 onDelete={() => handleDelete(record.id)}
                 onSave={() => handleSaveDraft(record.id)}
+                onEdit={() => onEditRecord?.(record)}
                 selectedForExport={selectedForExport}
                 isSelectMode={isSelectMode}
                 setSelectedForExport={setSelectedForExport}
@@ -532,13 +588,14 @@ interface RecordCardProps {
   onView: () => void;
   onDelete: () => void;
   onSave: () => void;
+  onEdit: () => void;
   selectedForExport: Set<string>;
   isSelectMode: boolean;
   setSelectedForExport: (set: Set<string>) => void;
 }
 
-function RecordCard({ record, onView, onDelete, onSave, selectedForExport, isSelectMode, setSelectedForExport }: RecordCardProps) {
-  const { t } = useLanguage();
+function RecordCard({ record, onView, onDelete, onSave, onEdit, selectedForExport, isSelectMode, setSelectedForExport }: RecordCardProps) {
+  const { t, language } = useLanguage();
   const typeColor = record.type === 'rice' ? 'from-amber-500 to-yellow-600' : 'from-emerald-500 to-green-600';
   const typeIcon = record.type === 'rice' ? '🌾' : '🌿';
   const typeName = record.type === 'rice' ? t('rice') : t('sugarcane');
@@ -569,16 +626,22 @@ function RecordCard({ record, onView, onDelete, onSave, selectedForExport, isSel
           </div>
           <div>
             <div className="text-white font-bold">{typeName}</div>
-            <div className="text-white/90 text-xs mt-1">
-              <span className="bg-white/20 px-2 py-1 rounded-full font-medium">
+            <div className="text-white/90 text-xs mt-1 flex gap-2">
+              <span className="bg-white/20 px-2 py-1 rounded-full font-medium border border-white/10">
                 {record.status === 'draft' ? t('draftStatus') : t('savedStatus')}
               </span>
+              {record.synced && (
+                <span className="bg-emerald-400/30 px-2 py-1 rounded-full font-bold border border-emerald-400/40 flex items-center gap-1 shadow-sm">
+                  <CloudUpload className="w-3 h-3" />
+                  {language === 'th' ? 'ซิงค์แล้ว' : 'Synced'}
+                </span>
+              )}
             </div>
           </div>
         </div>
-        <div className="text-white text-right">
-          <div className="text-2xl font-bold">{totalArea.toFixed(2)}</div>
-          <div className="text-xs text-white/90">{t('rai')} ({record.polygons.length} {t('polygon')})</div>
+        <div className="text-white text-right shrink-0">
+          <div className="text-xl md:text-2xl font-bold">{totalArea.toFixed(2)}</div>
+          <div className="text-[10px] md:text-xs text-white/90 leading-tight">{t('rai')} ({record.polygons.length} {t('polygon')})</div>
         </div>
       </div>
       <div className="p-5 space-y-3 bg-gradient-to-br from-white to-gray-50">
@@ -593,12 +656,28 @@ function RecordCard({ record, onView, onDelete, onSave, selectedForExport, isSel
         {record.remarks && <div className="text-sm text-gray-700 bg-blue-50/50 p-3 rounded-xl border border-blue-100/50">💬 {record.remarks}</div>}
         {record.photos && record.photos.length > 0 && <div className="flex items-center gap-2 text-sm text-gray-700 bg-purple-50/50 px-3 py-2 rounded-xl border border-purple-100/50">📷 <span className="font-medium">{record.photos.length} {t('photos').toLowerCase()}</span></div>}
         {!isSelectMode && (
-          <div className="flex gap-2 pt-3">
-            <button onClick={onView} className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-xl flex items-center justify-center gap-2 font-medium hover:bg-blue-700 transition-colors"><Eye className="w-5 h-5" /><span>{t('viewDetails')}</span></button>
+          <div className="flex gap-2 pt-3 flex-wrap">
+            <button onClick={onView} className="flex-[2] min-w-[120px] px-3 md:px-4 py-2.5 md:py-3 bg-blue-600 text-white rounded-xl flex items-center justify-center gap-2 font-medium hover:bg-blue-700 transition-colors text-sm md:text-base">
+              <Eye className="w-5 h-5 flex-shrink-0" />
+              <span>{t('viewDetails')}</span>
+            </button>
             {record.status === 'draft' && (
-              <button onClick={(e) => { e.stopPropagation(); if (confirm(t('confirmSaveDraft'))) onSave(); }} className="px-4 py-3 bg-green-600 text-white rounded-xl shadow-lg shadow-green-100 hover:bg-green-700 transition-colors"><Save className="w-5 h-5" /></button>
+              <>
+                <button
+                  onClick={(e) => { e.stopPropagation(); onEdit(); }}
+                  className="px-3 md:px-4 py-2.5 md:py-3 bg-amber-500 text-white rounded-xl shadow-lg shadow-amber-100 hover:bg-amber-600 transition-colors flex items-center gap-1.5"
+                >
+                  <Save className="w-5 h-5" />
+                  <span className="text-sm font-bold uppercase tracking-wide">Edit</span>
+                </button>
+                <button onClick={(e) => { e.stopPropagation(); if (confirm(t('confirmSaveDraft'))) onSave(); }} className="px-3 md:px-4 py-2.5 md:py-3 bg-green-600 text-white rounded-xl shadow-lg shadow-green-100 hover:bg-green-700 transition-colors">
+                  <CheckSquare className="w-5 h-5" />
+                </button>
+              </>
             )}
-            <button onClick={onDelete} className="px-4 py-3 bg-red-100 text-red-600 rounded-xl border border-red-200 hover:bg-red-200 transition-colors"><Trash2 className="w-5 h-5" /></button>
+            <button onClick={onDelete} className="px-3 md:px-4 py-2.5 md:py-3 bg-red-100 text-red-600 rounded-xl border border-red-200 hover:bg-red-200 transition-colors">
+              <Trash2 className="w-5 h-5" />
+            </button>
           </div>
         )}
       </div>

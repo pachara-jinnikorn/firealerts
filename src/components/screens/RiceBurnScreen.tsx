@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { AppBar } from '../AppBar';
 import { MapWithDrawing } from '../MapWithDrawing';
 import { FloatingButtons } from '../FloatingButtons';
@@ -9,7 +9,12 @@ import { LayerSwitch } from '../LayerSwitch';
 import { storage, SavedRecord } from '../../utils/storage';
 import { useLanguage } from '../../contexts/LanguageContext';
 
-export function RiceBurnScreen() {
+interface RiceBurnScreenProps {
+  editingRecord?: SavedRecord | null;
+  onSaveSuccess?: () => void;
+}
+
+export function RiceBurnScreen({ editingRecord, onSaveSuccess }: RiceBurnScreenProps) {
   const { t, language } = useLanguage();
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
@@ -18,6 +23,17 @@ export function RiceBurnScreen() {
   const [isSheetExpanded, setIsSheetExpanded] = useState(true);
   const [mapInstance, setMapInstance] = useState<any>(null);
   const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: number } | null>(null);
+
+  // Initialize from editingRecord
+  useEffect(() => {
+    if (editingRecord && editingRecord.type === 'rice') {
+      setPolygons(editingRecord.polygons || []);
+      setSelectedLocation(editingRecord.location);
+      if (editingRecord.location && mapInstance) {
+        mapInstance.setView([editingRecord.location.lat, editingRecord.location.lng], 18);
+      }
+    }
+  }, [editingRecord, mapInstance]);
 
   // NEW: Store the drawing controls from the map
   const [drawingControls, setDrawingControls] = useState<any>(null);
@@ -38,11 +54,11 @@ export function RiceBurnScreen() {
 
   const handleSave = (data: any) => {
     const record: SavedRecord = {
-      id: Date.now().toString(),
+      id: editingRecord?.id || Date.now().toString(),
       type: 'rice',
       date: data.date,
       time: data.time,
-      location: data.location || {
+      location: data.location || selectedLocation || {
         lat: 13.7563,
         lng: 100.5018,
         accuracy: 5,
@@ -52,14 +68,17 @@ export function RiceBurnScreen() {
       riceVariety: data.riceVariety,
       remarks: data.remarks,
       photos: data.photos,
-      createdAt: new Date().toISOString(),
+      createdAt: editingRecord?.createdAt || new Date().toISOString(),
       status: 'saved',
     };
 
     storage.saveRecord(record);
     setToastMessage(`✓ ${t('saveData')} (${polygons.length} ${t('polygon')})`);
     setShowToast(true);
-    setTimeout(() => setShowToast(false), 3000);
+    setTimeout(() => {
+      setShowToast(false);
+      onSaveSuccess?.();
+    }, 1500);
 
     // Reset form
     setPolygons([]);
@@ -67,11 +86,11 @@ export function RiceBurnScreen() {
 
   const handleSaveDraft = (data: any) => {
     const record: SavedRecord = {
-      id: Date.now().toString(),
+      id: editingRecord?.id || Date.now().toString(),
       type: 'rice',
       date: data.date,
       time: data.time,
-      location: data.location || {
+      location: data.location || selectedLocation || {
         lat: 13.7563,
         lng: 100.5018,
         accuracy: 5,
@@ -81,14 +100,17 @@ export function RiceBurnScreen() {
       riceVariety: data.riceVariety,
       remarks: data.remarks,
       photos: data.photos,
-      createdAt: new Date().toISOString(),
+      createdAt: editingRecord?.createdAt || new Date().toISOString(),
       status: 'draft',
     };
 
     storage.saveRecord(record);
     setToastMessage(`📝 ${t('saveDraft')}`);
     setShowToast(true);
-    setTimeout(() => setShowToast(false), 3000);
+    setTimeout(() => {
+      setShowToast(false);
+      onSaveSuccess?.();
+    }, 1500);
   };
 
   const handleLocateMe = () => {
@@ -235,6 +257,7 @@ export function RiceBurnScreen() {
             setShowToast(true);
             setTimeout(() => setShowToast(false), 2500);
           }}
+          initialPolygons={polygons}
         >
           {(controls: any) => {
             return (
@@ -257,8 +280,15 @@ export function RiceBurnScreen() {
         </MapWithDrawing>
 
         {/* Bottom Sheet with Form */}
-        <BottomSheet title={`${t('riceTitle')} (${t('riceSubtitle')})`} status="draft" theme="rice" isExpanded={isSheetExpanded} onExpandChange={setIsSheetExpanded}>
-          <RiceBurnForm onSave={handleSave} onSaveDraft={handleSaveDraft} polygons={polygons} onNavigateToMap={handleNavigateToMap} mapSelectedLocation={selectedLocation} />
+        <BottomSheet title={`${t('riceTitle')} (${t('riceSubtitle')})`} status={editingRecord?.status || "draft"} theme="rice" isExpanded={isSheetExpanded} onExpandChange={setIsSheetExpanded}>
+          <RiceBurnForm
+            onSave={handleSave}
+            onSaveDraft={handleSaveDraft}
+            polygons={polygons}
+            onNavigateToMap={handleNavigateToMap}
+            mapSelectedLocation={selectedLocation}
+            initialData={editingRecord}
+          />
         </BottomSheet>
       </div>
 

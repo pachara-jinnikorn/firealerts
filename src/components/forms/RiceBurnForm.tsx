@@ -3,7 +3,7 @@ import { Calendar, Clock, MapPin, Camera, X, Flame, Sprout, RefreshCw } from 'lu
 import { SegmentedControl } from '../form-fields/SegmentedControl';
 import { Toggle } from '../form-fields/Toggle';
 import { useLanguage } from '../../contexts/LanguageContext';
- 
+
 
 interface RiceBurnFormProps {
   onSave: (data: any) => void;
@@ -11,19 +11,20 @@ interface RiceBurnFormProps {
   polygons?: any[];
   onNavigateToMap?: () => void;
   mapSelectedLocation?: { lat: number; lng: number } | null;
+  initialData?: any;
 }
 
-export function RiceBurnForm({ onSave, onSaveDraft, polygons = [], onNavigateToMap, mapSelectedLocation }: RiceBurnFormProps) {
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-  const [time, setTime] = useState(new Date().toTimeString().slice(0, 5));
+export function RiceBurnForm({ onSave, onSaveDraft, polygons = [], onNavigateToMap, mapSelectedLocation, initialData }: RiceBurnFormProps) {
+  const [date, setDate] = useState(initialData?.date || new Date().toISOString().split('T')[0]);
+  const [time, setTime] = useState(initialData?.time || new Date().toTimeString().slice(0, 5));
   const [gpsEnabled, setGpsEnabled] = useState(true);
-  const [riceFieldType, setRiceFieldType] = useState<'dry' | 'wet' | 'unspecified'>('dry');
-  const [riceVariety, setRiceVariety] = useState('');
+  const [riceFieldType, setRiceFieldType] = useState<'dry' | 'wet' | 'unspecified'>(initialData?.riceFieldType || 'dry');
+  const [riceVariety, setRiceVariety] = useState(initialData?.riceVariety || '');
   const [otherVariety, setOtherVariety] = useState('');
-  const [remarks, setRemarks] = useState('');
+  const [remarks, setRemarks] = useState(initialData?.remarks || '');
   const [loading, setLoading] = useState(false);
-  const [photos, setPhotos] = useState<string[]>([]);
-  const [currentLocation, setCurrentLocation] = useState<{lat: number, lng: number, accuracy?: number} | null>(null);
+  const [photos, setPhotos] = useState<string[]>(initialData?.photos || []);
+  const [currentLocation, setCurrentLocation] = useState<{ lat: number, lng: number, accuracy?: number } | null>(null);
   const [locationLoading, setLocationLoading] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
   const { t } = useLanguage();
@@ -34,7 +35,7 @@ export function RiceBurnForm({ onSave, onSaveDraft, polygons = [], onNavigateToM
       getCurrentLocation();
     }
   }, [gpsEnabled]);
-  
+
   useEffect(() => {
     if (mapSelectedLocation) {
       setCurrentLocation({ lat: mapSelectedLocation.lat, lng: mapSelectedLocation.lng, accuracy: currentLocation?.accuracy });
@@ -119,7 +120,7 @@ export function RiceBurnForm({ onSave, onSaveDraft, polygons = [], onNavigateToM
     setLoading(true);
     await new Promise(resolve => setTimeout(resolve, 1000));
     setLoading(false);
-    
+
     const data = {
       date,
       time,
@@ -134,7 +135,7 @@ export function RiceBurnForm({ onSave, onSaveDraft, polygons = [], onNavigateToM
         accuracy: currentLocation.accuracy
       } : null,
     };
-    
+
     if (isDraft) {
       onSaveDraft(data);
     } else {
@@ -178,12 +179,12 @@ export function RiceBurnForm({ onSave, onSaveDraft, polygons = [], onNavigateToM
 
       {/* Location */}
       <div>
-          <label className="block text-sm text-gray-700 mb-3 flex items-center gap-1.5">
-            <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-              <MapPin className="w-4 h-4 text-green-600" />
-            </div>
-            <span>{t('location')}</span>
-          </label>
+        <label className="block text-sm text-gray-700 mb-3 flex items-center gap-1.5">
+          <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+            <MapPin className="w-4 h-4 text-green-600" />
+          </div>
+          <span>{t('location')}</span>
+        </label>
         <Toggle
           label={t('gpsLocation')}
           checked={gpsEnabled}
@@ -260,12 +261,12 @@ export function RiceBurnForm({ onSave, onSaveDraft, polygons = [], onNavigateToM
 
       {/* Rice Field Type */}
       <div>
-          <label className="block text-sm text-gray-700 mb-3 flex items-center gap-1.5">
-            <div className="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center">
-              <span className="text-base">🌾</span>
-            </div>
-            <span>{t('riceFieldType')}</span>
-          </label>
+        <label className="block text-sm text-gray-700 mb-3 flex items-center gap-1.5">
+          <div className="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center">
+            <span className="text-base">🌾</span>
+          </div>
+          <span>{t('riceFieldType')}</span>
+        </label>
         <SegmentedControl
           options={[
             { value: 'dry', label: `☀️ ${t('dryField')}` },
@@ -279,12 +280,12 @@ export function RiceBurnForm({ onSave, onSaveDraft, polygons = [], onNavigateToM
 
       {/* Rice Variety */}
       <div>
-          <label className="block text-sm text-gray-700 mb-3 flex items-center gap-1.5">
-            <div className="w-8 h-8 bg-yellow-100 rounded-lg flex items-center justify-center">
-              <Sprout className="w-4 h-4 text-yellow-600" />
-            </div>
-            <span>{t('riceVariety')}</span>
-          </label>
+        <label className="block text-sm text-gray-700 mb-3 flex items-center gap-1.5">
+          <div className="w-8 h-8 bg-yellow-100 rounded-lg flex items-center justify-center">
+            <Sprout className="w-4 h-4 text-yellow-600" />
+          </div>
+          <span>{t('riceVariety')}</span>
+        </label>
         <select
           value={riceVariety}
           onChange={(e) => setRiceVariety(e.target.value)}
@@ -354,7 +355,7 @@ export function RiceBurnForm({ onSave, onSaveDraft, polygons = [], onNavigateToM
           </div>
           <span>{t('photos')}</span>
         </label>
-        
+
         {/* Photo Preview Grid */}
         {photos.length > 0 && (
           <div className="grid grid-cols-3 gap-3 mb-3">
@@ -371,7 +372,7 @@ export function RiceBurnForm({ onSave, onSaveDraft, polygons = [], onNavigateToM
             ))}
           </div>
         )}
-        
+
         {/* Upload Button */}
         <label className="w-full px-4 py-4 bg-gradient-to-br from-gray-50 to-gray-100 border-2 border-dashed border-gray-300 rounded-2xl text-gray-600 hover:border-pink-300 hover:bg-pink-50 active:scale-98 transition-all flex items-center justify-center gap-3 shadow-sm cursor-pointer">
           <Camera className="w-6 h-6 text-pink-500" />

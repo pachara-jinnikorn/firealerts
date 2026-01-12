@@ -4,7 +4,7 @@ import { SugarcaneBurnScreen } from './components/screens/SugarcaneBurnScreen';
 import { HistoryScreen } from './components/screens/HistoryScreen';
 import { BottomNavigation } from './components/BottomNavigation';
 import Login from './components/Login';
-import { storage } from './utils/storage';
+import { SavedRecord } from './utils/storage';
 import { LanguageProvider } from './contexts/LanguageContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 
@@ -13,8 +13,17 @@ type Screen = 'rice' | 'sugarcane' | 'history';
 function AppContent() {
   const { user, loading } = useAuth();
   const [currentScreen, setCurrentScreen] = useState<Screen>('rice');
+  const [editingRecord, setEditingRecord] = useState<SavedRecord | null>(null);
 
-  // Removed sample data initialization to prevent auto-creating records
+  const handleScreenChange = (screen: Screen) => {
+    setCurrentScreen(screen);
+    setEditingRecord(null);
+  };
+
+  const startEditing = (record: SavedRecord) => {
+    setEditingRecord(record);
+    setCurrentScreen(record.type === 'rice' ? 'rice' : 'sugarcane');
+  };
 
   if (loading) {
     return (
@@ -35,13 +44,27 @@ function AppContent() {
     <div className="h-screen flex flex-col bg-gray-50 overflow-hidden">
       {/* Main Content */}
       <div className="flex-1 overflow-hidden">
-        {currentScreen === 'rice' && <RiceBurnScreen />}
-        {currentScreen === 'sugarcane' && <SugarcaneBurnScreen />}
-        {currentScreen === 'history' && <HistoryScreen />}
+        {currentScreen === 'rice' && (
+          <RiceBurnScreen
+            editingRecord={editingRecord}
+            onSaveSuccess={() => handleScreenChange('history')}
+          />
+        )}
+        {currentScreen === 'sugarcane' && (
+          <SugarcaneBurnScreen
+            editingRecord={editingRecord}
+            onSaveSuccess={() => handleScreenChange('history')}
+          />
+        )}
+        {currentScreen === 'history' && (
+          <HistoryScreen
+            onEditRecord={startEditing}
+          />
+        )}
       </div>
 
       {/* Bottom Navigation */}
-      <BottomNavigation currentScreen={currentScreen} onScreenChange={setCurrentScreen} />
+      <BottomNavigation currentScreen={currentScreen} onScreenChange={handleScreenChange} />
     </div>
   );
 }
