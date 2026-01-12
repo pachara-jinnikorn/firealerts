@@ -53,14 +53,14 @@ export function SugarcaneBurnScreen() {
       createdAt: new Date().toISOString(),
       status: 'saved',
     };
-    
+
     storage.saveRecord(record);
     const burnPolygons = polygons.filter(p => p.type === 'burn');
     const nonBurnPolygons = polygons.filter(p => p.type === 'non-burn');
     setToastMessage(`✓ ${t('saveData')} - ${t('burnArea')}: ${burnPolygons.length}, ${t('noBurnArea')}: ${nonBurnPolygons.length}`);
     setShowToast(true);
     setTimeout(() => setShowToast(false), 3000);
-    
+
     // Reset
     setPolygons([]);
   };
@@ -84,19 +84,19 @@ export function SugarcaneBurnScreen() {
       createdAt: new Date().toISOString(),
       status: 'draft',
     };
-    
+
     storage.saveRecord(record);
     setToastMessage(`📝 ${t('saveDraft')}`);
     setShowToast(true);
     setTimeout(() => setShowToast(false), 3000);
   };
-  
+
   const handleLocateMe = () => {
     if (drawingControls?.isDrawing) return;
-    
+
     setToastMessage('🎯 ' + t('gettingLocation'));
     setShowToast(true);
-    
+
     if (!navigator.geolocation) {
       setToastMessage('⚠️ GPS ไม่รองรับในเบราว์เซอร์นี้');
       setTimeout(() => setShowToast(false), 3000);
@@ -136,7 +136,7 @@ export function SugarcaneBurnScreen() {
       }
     );
   };
-  
+
   const handleDropPin = () => {
     if (drawingControls?.isDrawing) return;
     const wasDropping = (window as any).__isPinDropping;
@@ -149,7 +149,7 @@ export function SugarcaneBurnScreen() {
     setShowToast(true);
     setTimeout(() => setShowToast(false), 3000);
   };
-  
+
   const handleDrawPolygon = () => {
     console.log('🎨 Draw polygon button clicked');
     if (drawingControls?.startDrawing) {
@@ -165,25 +165,29 @@ export function SugarcaneBurnScreen() {
       setTimeout(() => setShowToast(false), 2000);
     }
   };
-  
+
   const handleStopDrawing = () => {
     console.log('⏸️ Stop drawing button clicked');
     if (drawingControls?.stopDrawing) {
       drawingControls.stopDrawing();
     }
   };
-  
+
   const handlePolygonCreated = (polygon: any) => {
     console.log('✅ Polygon created in screen:', polygon);
     setTimeout(() => {
-      setPolygons(prev => [...prev, polygon]);
+      const hadExisting = polygons.length > 0;
+      setPolygons([polygon]); // Replace with single polygon
       const layerText = polygon.type === 'burn' ? `🔥 ${t('burnArea')}` : `🌱 ${t('noBurnArea')}`;
-      setToastMessage(`✓ ${language === 'th' ? 'สร้าง' : 'Created'} ${layerText} - ${(polygon.area / 1600).toFixed(2)} ${t('rai')}`);
+      const message = hadExisting
+        ? `✓ ${language === 'th' ? 'แทนที่' : 'Replaced'} ${layerText} - ${(polygon.area / 1600).toFixed(2)} ${t('rai')}`
+        : `✓ ${language === 'th' ? 'สร้าง' : 'Created'} ${layerText} - ${(polygon.area / 1600).toFixed(2)} ${t('rai')}`;
+      setToastMessage(message);
       setShowToast(true);
       setTimeout(() => setShowToast(false), 3000);
     }, 0);
   };
-  
+
   const handlePolygonDeleted = (id: string) => {
     console.log('🗑️ Polygon deleted in screen:', id);
     setPolygons(prev => prev.filter(p => p.id !== id));
@@ -210,7 +214,7 @@ export function SugarcaneBurnScreen() {
 
       {/* Map with Floating Buttons */}
       <div className="flex-1 relative">
-        <MapWithDrawing 
+        <MapWithDrawing
           theme="sugarcane"
           activeLayer={activeLayer}
           onPolygonCreated={handlePolygonCreated}
@@ -227,8 +231,8 @@ export function SugarcaneBurnScreen() {
           {(controls: any) => {
             return (
               <>
-                <LayerSwitch 
-                  activeLayer={activeLayer} 
+                <LayerSwitch
+                  activeLayer={activeLayer}
                   onLayerChange={setActiveLayer}
                   theme="sugarcane"
                   isVisible={!isSheetExpanded}

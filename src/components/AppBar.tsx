@@ -12,11 +12,11 @@ interface AppBarProps {
 export function AppBar({ title, subtitle, theme = 'rice', bgColor }: AppBarProps) {
   const { language, setLanguage, t } = useLanguage();
   const { signOut } = useAuth();
-  
-  const pageGradientClass = theme === 'rice' 
-    ? 'bg-gradient-to-r from-amber-500 to-yellow-500' 
+
+  const pageGradientClass = theme === 'rice'
+    ? 'bg-gradient-to-r from-amber-500 to-yellow-500'
     : 'bg-gradient-to-r from-emerald-500 to-green-500';
-  
+
   const toggleLanguage = () => {
     setLanguage(language === 'th' ? 'en' : 'th');
   };
@@ -26,7 +26,7 @@ export function AppBar({ title, subtitle, theme = 'rice', bgColor }: AppBarProps
       await signOut();
     }
   };
-  
+
   return (
     <header className="safe-area-top shadow-xl">
       {/* Main Header - Dark Professional Color */}
@@ -65,15 +65,6 @@ export function AppBar({ title, subtitle, theme = 'rice', bgColor }: AppBarProps
           </div>
         </div>
       </div>
-      
-      {/* Page Title - Theme Color */}
-      {!bgColor && (
-        <div className={`${pageGradientClass} px-4 py-3 shadow-lg`}>
-          <div className="bg-white/20 backdrop-blur-sm rounded-xl px-4 py-2.5 border border-white/30 shadow-inner">
-            <h2 className="text-white text-center font-bold drop-shadow-md">{title}</h2>
-          </div>
-        </div>
-      )}
     </header>
   );
 }
